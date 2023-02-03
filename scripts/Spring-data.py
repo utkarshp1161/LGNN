@@ -41,10 +41,12 @@ from jax.config import config
 from src import lnn
 from src.graph import *
 from src.lnn import acceleration, accelerationFull, accelerationTV
-from src.md import *
+from src.md import predition
 from src.models import MSE, initialize_mlp
 from src.nve import NVEStates, nve
 from src.utils import *
+
+from src.spring.utils_data import  displacement, shift, external_force
 
 config.update("jax_enable_x64", True)
 config.update("jax_debug_nans", True)
@@ -68,6 +70,7 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
         """
         Args:
             name: string
+            filename_prefix: string
 
         Return: string
         """
@@ -77,40 +80,22 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
         print("===", filename, "===")
         return filename
 
-    def displacement(a, b):
-        """
-
-        Args:
-            a: float
-            b: float
-        
-        Return: float
-        """
-        return a - b
-
-    def shift(R, dR, V):
-        """
-
-        Args:
-            R: float
-            dR: float
-            V: float
-        
-        Return: final position, velocity
-        """
-        return R+dR, V
 
     def OUT(f):
         """
         
         Args:
+            f: string
 
-        
+
+        Return: 
         """
         @wraps(f)
         def func(file, *args, **kwargs):
-            return f(_filename(file), *args, **kwargs)
+            return f(_filename(file), *args, **kwargs) # calls f on output of _filename function
         return func
+
+
 
     loadmodel = OUT(src.models.loadmodel) # loadmodel
     savemodel = OUT(src.models.savemodel) # save model
@@ -150,31 +135,40 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
     stride = 100
     lr = 0.001
 
-    ################################################
-    ################## SYSTEM ######################
-    ################################################
-
-    # parameters = [[dict(length=1.0)]]
-    # pot_energy_orig = map_parameters(lnn.SPRING, displacement, species, parameters)
+    kin_energy = partial(lnn._T, mass=masses)
 
     def pot_energy_orig(x):
+        """
+        Args:
+            x:
+            senders: int
+            recievers: int
+
+        
+        Return: 
+        """
         dr = jnp.square(x[senders, :] - x[receivers, :]).sum(axis=1) # k(delta_x **2)
         return vmap(partial(lnn.SPRING, stiffness=1.0, length=1.0))(dr).sum()
-
-    kin_energy = partial(lnn._T, mass=masses)
 
     def Lactual(x, v, params):
         """ Calculate Langrangian: K.E - P.E
         """
         return kin_energy(v) - pot_energy_orig(x)
 
-    # def constraints(x, v, params):
-    #     return jax.jacobian(lambda x: hconstraints(x.reshape(-1, dim)), 0)(x)
 
-    def external_force(x, v, params):
-        F = 0*R
-        F = jax.ops.index_update(F, (1, 1), -1.0)
-        return F.reshape(-1, 1)
+    def force_fn_orig(R, V, params, mass=None):
+        """ Returns 
+
+        Args:
+
+
+        Return:
+        """
+        if mass is None:
+            return acceleration_fn_orig(R, V, params)
+        else:
+            return acceleration_fn_orig(R, V, params)*mass.reshape(-1, 1)
+
 
     if ifdrag == 0:
         print("Drag: 0.0")
@@ -197,13 +191,6 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
                                                 constraints=None,
                                                 external_force=None)
 
-    def force_fn_orig(R, V, params, mass=None):
-        """ Returns 
-        """
-        if mass is None:
-            return acceleration_fn_orig(R, V, params)
-        else:
-            return acceleration_fn_orig(R, V, params)*mass.reshape(-1, 1)
 
     @jit
     def forward_sim(R, V):
@@ -224,7 +211,7 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
         ind += 1
         print(f"{ind}/{len(init_confs)}", end='\r')
         model_states = forward_sim(R, V)
-        dataset_states += [model_states]
+        dataset_states += [model_states] # appending the states
         if ind % saveat == 0:
             print(f"{ind} / {len(init_confs)}")
             print("Saving datafile...")
@@ -263,4 +250,5 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
             break
 
 
-fire.Fire(main)
+if __name__ == "__main__":
+    fire.Fire(main)
