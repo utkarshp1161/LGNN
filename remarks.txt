@@ -1,0 +1,4 @@
+ loadfile and savfile functions in : src.io
+ loadmodel and savemodel functions in : src.models
+
+ 1. ran spring-data.py : still spring-FGN.py says run spring-data.py --> sol python Spring-FGN.py 9

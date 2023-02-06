@@ -1,0 +1,14 @@
+
+("Data generation ...")
+
+psystems.nsprings--> chain --> init_confs --> R, V
+--> forward sim --> md --> predition --> states (list)
+--> savefile(f"model_states_{ifdrag}.pkl", dataset_states) --> saved as pickel
+
+
+
+
+("plotting energy...")
+
+dataset_states --> for states in dataset_states--> cal_energy(states) --> jnp.array([PE, KE, L, KE+PE]).T
+--> src.nve --> NVEStates(states) --> ovito file per states

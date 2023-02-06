@@ -1,5 +1,6 @@
 
 """A library of Graph Neural Network models."""
+"""https://github.com/deepmind/jraph"""
 
 import functools
 import sunau

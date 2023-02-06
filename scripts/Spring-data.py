@@ -97,10 +97,10 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
 
 
 
-    loadmodel = OUT(src.models.loadmodel) # loadmodel
-    savemodel = OUT(src.models.savemodel) # save model
+    #loadmodel = OUT(src.models.loadmodel) # loadmodel
+    #savemodel = OUT(src.models.savemodel) # save model
 
-    loadfile = OUT(src.io.loadfile)
+    #loadfile = OUT(src.io.loadfile)
     savefile = OUT(src.io.savefile)
     save_ovito = OUT(src.io.save_ovito)
 
@@ -194,6 +194,8 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
 
     @jit
     def forward_sim(R, V):
+        """Returns state 
+        """
         return predition(R,  V, None, force_fn_orig, shift, dt, masses, stride=stride, runs=runs)
 
     @jit
@@ -210,7 +212,7 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
     for R, V in init_confs:
         ind += 1
         print(f"{ind}/{len(init_confs)}", end='\r')
-        model_states = forward_sim(R, V)
+        model_states = forward_sim(R, V) #   
         dataset_states += [model_states] # appending the states
         if ind % saveat == 0:
             print(f"{ind} / {len(init_confs)}")
@@ -246,7 +248,7 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
         save_ovito(f"dataset_{ind}.ovito", [
             state for state in NVEStates(states)], lattice="")
 
-        if ind > 10:
+        if ind > 10: # only 9 pendulum system
             break
 
 

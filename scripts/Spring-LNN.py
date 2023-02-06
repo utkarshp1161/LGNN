@@ -17,7 +17,7 @@ from jax.experimental import optimizers
 from jax_md import space
 from shadow.plot import *
 from sklearn.metrics import r2_score
-from torch import mode
+#from torch import mode --> not being used
 
 from psystems.nsprings import get_init
 
@@ -103,7 +103,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
             return f(_filename(file, tag=tag), *args, **kwargs)
         return func
 
-    loadmodel = OUT(src.models.loadmodel)
+    loadmodel = OUT(src.models.loadmodel) # sends output of _filename(file, tag=tag), *args, **kwargs
     savemodel = OUT(src.models.savemodel)
 
     loadfile = OUT(src.io.loadfile)

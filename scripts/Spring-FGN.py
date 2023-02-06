@@ -1,7 +1,4 @@
-################################################
-################## IMPORT ######################
-################################################
-
+"""This is a script for simulating particle dynamics in a system of connected springs."""
 import json
 import sys
 from datetime import datetime
@@ -53,12 +50,17 @@ def namestr(obj, namespace):
     return [name for name in namespace if namespace[name] is obj]
 
 
-def pprint(*args, namespace=globals()):
-    for arg in args:
-        print(f"{namestr(arg, namespace)[0]}: {arg}")
+#def pprint(*args, namespace=globals()):
+#    """helpers for formatting the simulation configurations and outputting them to the console.
+#    """
+#    for arg in args:
+#        print(f"{namestr(arg, namespace)[0]}: {arg}")
 
 
 def wrap_main(f):
+    """helpers for formatting the simulation configurations and outputting them to the console.
+    
+    """
     def fn(*args, **kwargs):
         config = (args, kwargs)
         print("Configs: ")
@@ -76,6 +78,12 @@ def wrap_main(f):
 def Main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
          dt=1.0e-3, ifdrag=0, stride=100, trainm=1, grid=False, mpass=1, lr=0.001,
          withdata=None, datapoints=None, batch_size=1000):
+    """
+    The "Main" function is a wrapper around the "main" function, 
+    which takes various simulation parameters such as the number of springs, 
+    simulation time, and learning rate, as arguments. 
+    
+    """
 
     return wrap_main(main)(N=N, epochs=epochs, seed=seed, rname=rname, saveat=saveat, error_fn=error_fn,
                            dt=dt, ifdrag=ifdrag, stride=stride, trainm=trainm, grid=grid, mpass=mpass, lr=lr,
@@ -84,6 +92,9 @@ def Main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
 
 def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
          dt=1.0e-3, ifdrag=0, stride=100, trainm=1, grid=False, mpass=1, lr=0.001, withdata=None, datapoints=None, batch_size=1000, config=None):
+    """
+    The "main" function sets up and runs the simulation, and saves the results in a specified directory. 
+    """
 
     # print("Configs: ")
     # pprint(N, epochs, seed, rname,
@@ -108,6 +119,9 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         return filename
 
     def displacement(a, b):
+        """computes the displacement between two points.
+        
+        """
         return a - b
 
     def shift(R, dR, V):
@@ -116,11 +130,12 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     def OUT(f):
         @wraps(f)
         def func(file, *args, tag=TAG, **kwargs):
+            #print(file) --> debugging 
             return f(_filename(file, tag=tag), *args, **kwargs)
         return func
 
-    loadmodel = OUT(src.models.loadmodel)
-    savemodel = OUT(src.models.savemodel)
+    #loadmodel = OUT(src.models.loadmodel)
+    #savemodel = OUT(src.models.savemodel)
 
     loadfile = OUT(src.io.loadfile)
     savefile = OUT(src.io.savefile)
@@ -135,7 +150,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     key = random.PRNGKey(seed)
 
     try:
-        dataset_states = loadfile(f"model_states_{ifdrag}.pkl", tag="data")[0]
+        dataset_states = loadfile(f"model_states_{ifdrag}.pkl", tag="data")[0] #
     except:
         raise Exception("Generate dataset first. Use *-data.py file.")
 
