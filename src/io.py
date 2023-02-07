@@ -6,12 +6,16 @@ import jax.numpy as jnp
 
 
 def loadfile(filename, verbose=False):
+    """Loads a pickle file
+    """
     if verbose:
         print(f"Loading {filename}")
     return pickle.load(open(filename, "rb"))
 
 
 def savefile(filename, data, metadata={}, verbose=False):
+    """Saves a pickle file
+    """
     if verbose:
         print(f"Saving {filename}")
     pickle.dump((data, metadata), open(filename, "wb+"))

@@ -119,8 +119,8 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
             return f(_filename(file, tag=tag), *args, **kwargs)
         return func
 
-    loadmodel = OUT(src.models.loadmodel)
-    savemodel = OUT(src.models.savemodel)
+    #loadmodel = OUT(src.models.loadmodel)
+    #savemodel = OUT(src.models.savemodel)
 
     loadfile = OUT(src.io.loadfile)
     savefile = OUT(src.io.savefile)
@@ -462,7 +462,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.legend()
-    plt.savefig(_filename(f"training_loss_{ifdrag}_{trainm}.png"))
+    plt.savefig(_filename(f"training_loss_{ifdrag}_{trainm}.png")) # only saving in LGNN
 
     metadata = {
         "savedat": epoch,

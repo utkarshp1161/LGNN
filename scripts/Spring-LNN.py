@@ -2,6 +2,8 @@
 ################## IMPORT ######################
 ################################################
 
+import pdb
+
 import json
 import sys
 from datetime import datetime
@@ -50,8 +52,16 @@ def pprint(*args, namespace=globals()):
 
 
 def wrap_main(f):
+    """a higher-order function that takes another function f as an argument and returns a new function fn. 
+    The fn function takes any number of arguments and keyword arguments and calls the original function f 
+    with the same arguments and keyword arguments, as well as an additional argument config which 
+    is a tuple containing the arguments and keyword arguments passed to fn. 
+    fn first prints the arguments and keyword arguments and then calls f with all of them.
+    
+    
+    """
     def fn(*args, **kwargs):
-        config = (args, kwargs)
+        config = (args, kwargs) #((), {'N': 9, 'epochs': 20, 'seed': 42, 'rname': True, 'saveat': 10, 'error_fn': 'L2error', 'dt': 0.001, 'ifdrag': 0, 'stride': 100, 'trainm': 1, 'grid': False, 'mpass': 1, 'lr': 0.001, 'withdata': None, 'datapoints': None, 'batch_size': 1000})
         print("Configs: ")
         print(f"Args: ")
         for i in args:
@@ -67,6 +77,30 @@ def wrap_main(f):
 def Main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
          dt=1.0e-3, ifdrag=0, stride=100, trainm=1, grid=False, mpass=1, lr=0.001,
          withdata=None, datapoints=None, batch_size=1000):
+    """Main is a function that takes several optional arguments with default values and 
+    returns the result of calling wrap_main(main) with those arguments. 
+    The arguments and their default values are:
+
+    args:
+        N: 3
+        epochs: 10000
+        seed: 42
+        rname: True
+        saveat: 10
+        error_fn: "L2error"
+        dt: 1.0e-3
+        ifdrag: 0
+        stride: 100
+        trainm: 1
+        grid: False
+        mpass: 1
+        lr: 0.001
+        withdata: None
+        datapoints: None
+        batch_size: 1000
+    
+    
+    """
 
     return wrap_main(main)(N=N, epochs=epochs, seed=seed, rname=rname, saveat=saveat, error_fn=error_fn,
                            dt=dt, ifdrag=ifdrag, stride=stride, trainm=trainm, grid=grid, mpass=mpass, lr=lr,
@@ -75,6 +109,14 @@ def Main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
 
 def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
          dt=1.0e-3, ifdrag=0, stride=100, trainm=1, grid=False, mpass=1, lr=0.001, withdata=None, datapoints=None, batch_size=1000, config=None):
+    """main is the original function that is being wrapped by wrap_main.
+    It takes several optional arguments with default values and is 
+    responsible for implementing the main logic of the script. 
+    The arguments and their default values are the same as in Main. 
+    It is called with all the arguments passed to Main, 
+    as well as the additional config argument.
+
+    """
 
     # print("Configs: ")
     # pprint(N, epochs, seed, rname,
@@ -82,11 +124,11 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     #        namespace=locals())
 
     randfilename = datetime.now().strftime(
-        "%m-%d-%Y_%H-%M-%S") + f"_{datapoints}"
+        "%m-%d-%Y_%H-%M-%S") + f"_{datapoints}" #02-07-2023_15-46-44_None
 
-    PSYS = f"{N}-Spring"
-    TAG = f"lnn"
-    out_dir = f"../results"
+    PSYS = f"{N}-Spring" #'9-Spring'
+    TAG = f"lnn" # 'lnn'
+    out_dir = f"../results" #'../results'
 
     def _filename(name, tag=TAG):
         rstring = randfilename if (rname and (tag != "data")) else "0"
@@ -103,27 +145,29 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
             return f(_filename(file, tag=tag), *args, **kwargs)
         return func
 
-    loadmodel = OUT(src.models.loadmodel) # sends output of _filename(file, tag=tag), *args, **kwargs
-    savemodel = OUT(src.models.savemodel)
+    #loadmodel = OUT(src.models.loadmodel) # sends output of _filename(file, tag=tag), *args, **kwargs
+    #savemodel = OUT(src.models.savemodel)
 
-    loadfile = OUT(src.io.loadfile)
-    savefile = OUT(src.io.savefile)
-    save_ovito = OUT(src.io.save_ovito)
+    loadfile = OUT(src.io.loadfile) # <function loadfile at 0x2af04be36840>
+    savefile = OUT(src.io.savefile) # <function savefile at 0x2af04be368c8>
+    #save_ovito = OUT(src.io.save_ovito)
 
-    savefile(f"config_{ifdrag}_{trainm}.pkl", config)
+    savefile(f"config_{ifdrag}_{trainm}.pkl", config) # ((), {'N': 9, 'epochs': 20, 'seed': 42, 'rname': True, 'saveat': 10, 'error_fn': 'L2error', 'dt': 0.001, 'ifdrag': 0, 'stride': 100, 'trainm': 1, 'grid': False, 'mpass': 1, 'lr': 0.001, 'withdata': None, 'datapoints': None, 'batch_size': 1000})
+    # this pickle file contains info about system 
+
 
     ################################################
     ################## CONFIG ######################
     ################################################
-    np.random.seed(seed)
-    key = random.PRNGKey(seed)
+    np.random.seed(seed) # 42
+    key = random.PRNGKey(seed) #DeviceArray([ 0, 42], dtype=uint32), A PRNG key, consumable by random functions as well as split and fold_in.
 
     try:
-        dataset_states = loadfile(f"model_states_{ifdrag}.pkl", tag="data")[0]
+        dataset_states = loadfile(f"model_states_{ifdrag}.pkl", tag="data")[0] # loads the /results/9-Spring-data/0/model_states_0.pkl
     except:
         raise Exception("Generate dataset first. Use *-data.py file.")
 
-    if datapoints is not None:
+    if datapoints is not None: # not executed--> datapoints = None
         dataset_states = dataset_states[:datapoints]
 
     model_states = dataset_states[0]
@@ -200,7 +244,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     def MLP(in_dim, out_dim, key, hidden=256, nhidden=2):
         return initialize_mlp([in_dim]+[hidden]*nhidden+[out_dim], key)
 
-    lnn_params_pe = MLP(N*dim, 1, key)
+    lnn_params_pe = MLP(N*dim, 1, key) # defining the neural network
     lnn_params_ke = jnp.array(np.random.randn(N))
 
     def Lmodel(x, v, params):
@@ -213,7 +257,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         return (KE -
                 forward_pass(params["lnn_pe"], x.flatten(), activation_fn=SquarePlus)[0])
 
-    params = {"lnn_pe": lnn_params_pe, "lnn_ke": lnn_params_ke}
+    params = {"lnn_pe": lnn_params_pe, "lnn_ke": lnn_params_ke} # defined params
 
     def nndrag(v, params):
         return - jnp.abs(models.forward_pass(params, v.reshape(-1), activation_fn=models.SquarePlus)) * v
@@ -241,7 +285,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     ################## ML Training #################
     ################################################
 
-    LOSS = getattr(src.models, error_fn)
+    LOSS = getattr(src.models, error_fn) #
 
     @jit
     def loss_fn(params, Rs, Vs, Fs):
@@ -362,6 +406,8 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
              params, metadata={"savedat": epoch})
     savefile(f"loss_array_{part}.dil",
              (larray, ltarray), metadata={"savedat": epoch})
+
+    pdb.set_trace()
 
 
 fire.Fire(Main)
