@@ -50,6 +50,7 @@ from src.spring.utils_data import  displacement, shift, external_force
 
 config.update("jax_enable_x64", True)
 config.update("jax_debug_nans", True)
+import pdb
 # jax.config.update('jax_platform_name', 'gpu')
 
 
@@ -250,6 +251,8 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
 
         if ind > 10: # only 9 pendulum system
             break
+
+    #pdb.set_trace()
 
 
 if __name__ == "__main__":

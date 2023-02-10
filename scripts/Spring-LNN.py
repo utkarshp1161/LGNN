@@ -163,42 +163,46 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     key = random.PRNGKey(seed) #DeviceArray([ 0, 42], dtype=uint32), A PRNG key, consumable by random functions as well as split and fold_in.
 
     try:
-        dataset_states = loadfile(f"model_states_{ifdrag}.pkl", tag="data")[0] # loads the /results/9-Spring-data/0/model_states_0.pkl
+        dataset_states = loadfile(f"model_states_{ifdrag}.pkl", tag="data")[0] # loads the /results/9-Spring-data/0/model_states_0.pkl --> 
     except:
         raise Exception("Generate dataset first. Use *-data.py file.")
 
     if datapoints is not None: # not executed--> datapoints = None
         dataset_states = dataset_states[:datapoints]
 
-    model_states = dataset_states[0]
+    #dataset_states --> <class 'list'>  --> len : 1000
+    model_states = dataset_states[0] #--> <class 'jax_md.simulate.NVEState'>
 
     print(
         f"Total number of data points: {len(dataset_states)}x{model_states.position.shape[0]}")
 
-    N, dim = model_states.position.shape[-2:]
-    masses = model_states.mass[0].flatten()
-    species = jnp.zeros(N, dtype=int)
+    N, dim = model_states.position.shape[-2:] # 9, 2
+    masses = model_states.mass[0].flatten() # array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
+    species = jnp.zeros(N, dtype=int) # DeviceArray([0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int64)
 
-    Rs, Vs, Fs = States().fromlist(dataset_states).get_array()
-    Rs = Rs.reshape(-1, N, dim)
-    Vs = Vs.reshape(-1, N, dim)
-    Fs = Fs.reshape(-1, N, dim)
+    Rs, Vs, Fs = States().fromlist(dataset_states).get_array()  #  read position, velocities and forces
+    Rs = Rs.reshape(-1, N, dim) # (100000, 9, 2)
+    Vs = Vs.reshape(-1, N, dim) # (100000, 9, 2)
+    Fs = Fs.reshape(-1, N, dim) # (100000, 9, 2)
+    #pdb.set_trace()
 
-    mask = np.random.choice(len(Rs), len(Rs), replace=False)
-    allRs = Rs[mask]
-    allVs = Vs[mask]
-    allFs = Fs[mask]
+    mask = np.random.choice(len(Rs), len(Rs), replace=False) # (100000,)
+    allRs = Rs[mask] # (100000, 9, 2)  
+    allVs = Vs[mask] # (100000, 9, 2)
+    allFs = Fs[mask] # (100000, 9, 2)
 
-    Ntr = int(0.75*len(Rs))
-    Nts = len(Rs) - Ntr
+    Ntr = int(0.75*len(Rs)) # 75000 ---> train set
+    Nts = len(Rs) - Ntr # 25000 ----> test set
 
-    Rs = allRs[:Ntr]
+    Rs = allRs[:Ntr] 
     Vs = allVs[:Ntr]
     Fs = allFs[:Ntr]
 
     Rst = allRs[Ntr:]
     Vst = allVs[Ntr:]
     Fst = allFs[Ntr:]
+
+    #pdb.set_trace()
 
     ################################################
     ################## SYSTEM ######################
@@ -242,10 +246,22 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     ################################################
 
     def MLP(in_dim, out_dim, key, hidden=256, nhidden=2):
+        """Initialzes a mlp from src.models
+        Args:
+            in_dim: int
+            out_dim: int
+            key: int
+            hidden: int
+            nhidden: int
+        
+
+        Returns: Initialize the weights of all layers of a linear layer network
+        """
         return initialize_mlp([in_dim]+[hidden]*nhidden+[out_dim], key)
 
-    lnn_params_pe = MLP(N*dim, 1, key) # defining the neural network
-    lnn_params_ke = jnp.array(np.random.randn(N))
+    lnn_params_pe = MLP(N*dim, 1, key) # <class 'list'>, defining the neural network weights --> parameters
+    lnn_params_ke = jnp.array(np.random.randn(N)) # (9,) 
+    pdb.set_trace()
 
     def Lmodel(x, v, params):
         if trainm:
@@ -266,19 +282,24 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         print("Drag: 0.0")
 
         def drag(x, v, params):
+            """Returns 0
+            """
             return 0.0
     elif ifdrag == 1:
         print("Drag: -0.1*v")
 
         def drag(x, v, params):
+            """
+            """
             return vmap(nndrag, in_axes=(0, None))(v.reshape(-1), params["drag"]).reshape(-1, 1)
 
-    params["drag"] = initialize_mlp([1, 5, 5, 1], key)
+    params["drag"] = initialize_mlp([1, 5, 5, 1], key) # dict_keys(['lnn_pe', 'lnn_ke', 'drag'])
 
-    acceleration_fn_model = src.lnn.accelerationFull(N, dim,
+    acceleration_fn_model = src.lnn.accelerationFull(N, dim,       
                                                      lagrangian=Lmodel,
                                                      constraints=None,
                                                      non_conservative_forces=drag)
+    #acceleration_fn_model <function accelerationFull.<locals>.fn at 0x2ac84ff7c158>
     v_acceleration_fn_model = vmap(acceleration_fn_model, in_axes=(0, 0, None))
 
     ################################################
@@ -286,6 +307,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     ################################################
 
     LOSS = getattr(src.models, error_fn) #
+    pdb.set_trace()
 
     @jit
     def loss_fn(params, Rs, Vs, Fs):
@@ -315,8 +337,15 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         # grads_ = jax.tree_map(partial(jnp.clip, a_min=-1000.0, a_max=1000.0), grads_)
         return opt_update_(i, grads_, opt_state)
 
-    def batching(*args, size=None):
-        L = len(args[0])
+    def batching(Rs, Vs, Fs, size=None):
+        """Returns : batches of entire data 
+
+        Args:
+            size: int --> batch size
+        
+        """
+        args = [Rs, Vs, Fs]
+        L = len(args[0]) # args = [Rs, Vs, Fs]
         if size != None:
             nbatches1 = int((L - 0.5) // size) + 1
             nbatches2 = max(1, nbatches1 - 1)
@@ -333,12 +362,12 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
             size = L
 
         newargs = []
-        for arg in args:
+        for arg in args: # arg = [Rs, Vs, Fs]
             newargs += [jnp.array([arg[i*size:(i+1)*size]
                                    for i in range(nbatches)])]
         return newargs
 
-    bRs, bVs, bFs = batching(Rs, Vs, Fs, size=batch_size)
+    bRs, bVs, bFs = batching(Rs, Vs, Fs, size=batch_size) # data batched
 
     print(f"training ...")
 
@@ -362,7 +391,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     print_loss()
 
     for epoch in range(epochs):
-        for data in zip(bRs, bVs, bFs):
+        for data in zip(bRs, bVs, bFs): # 
             optimizer_step += 1
             opt_state, params, l_ = step(
                 optimizer_step, (opt_state, params, 0), *data)
@@ -407,7 +436,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     savefile(f"loss_array_{part}.dil",
              (larray, ltarray), metadata={"savedat": epoch})
 
-    pdb.set_trace()
+    
 
 
 fire.Fire(Main)
