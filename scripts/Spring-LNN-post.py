@@ -8,6 +8,7 @@ from datetime import datetime
 from functools import partial, wraps
 from logging import warning
 from statistics import mode
+import pdb
 
 import fire
 import jax
@@ -19,7 +20,7 @@ from jax_md import space
 from pyexpat import model
 from shadow.plot import *
 from sklearn.metrics import r2_score
-from torch import ne
+#from torch import ne # not being used anywhere --> Computes input != other input =other element-wise.
 
 from psystems.nsprings import (chain, edge_order, get_connections,
                                get_fully_connected_senders_and_receivers,
@@ -69,7 +70,9 @@ def main(N=3, dt=1.0e-3, saveovito=0, datapoints=100, withdata=None, semilog=1, 
     def _filename(name, tag=TAG):
         rstring = randfilename if (rname and (tag != "data")) else (
             "0" if (tag == "data") or (withdata == None) else f"{withdata}")
-        filename_prefix = f"{out_dir}/{PSYS}-{tag}/{rstring}/"
+        #pdb.set_trace()
+        #rstring = "9-Spring-data/0"
+        filename_prefix = f"{out_dir}/{PSYS}-{tag}/{rstring}/" # ../results/9-Spring-lnn/0/
         file = f"{filename_prefix}/{name}"
         os.makedirs(os.path.dirname(file), exist_ok=True)
         filename = f"{filename_prefix}/{name}".replace("//", "/")
@@ -102,7 +105,7 @@ def main(N=3, dt=1.0e-3, saveovito=0, datapoints=100, withdata=None, semilog=1, 
     key = random.PRNGKey(seed)
 
     dataset_states = loadfile(
-        f"model_states_{ifdrag}.pkl", tag="data")[0]
+        f"model_states_{ifdrag}.pkl", tag="data")[0] # loads model state
     model_states = dataset_states[0]
 
     R = model_states.position[0]
@@ -214,7 +217,7 @@ def main(N=3, dt=1.0e-3, saveovito=0, datapoints=100, withdata=None, semilog=1, 
         params = loadfile(f"lnn_trained_model_{ifdrag}_{trainm}.dil")[0]
     except:
         warning("Using unspecified taining model.")
-        params = loadfile(f"lnn_trained_model.dil")[0]
+        params = loadfile(f"lnn_trained_model.dil")[0] # load model
 
     sim_model = get_forward_sim(
         params=params, force_fn=force_fn_model, runs=runs)

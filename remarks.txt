@@ -1,5 +1,7 @@
  loadfile and savfile functions in : src.io
  loadmodel and savemodel functions in : src.models
 
+ qsub -P sire -q test -I -l select=1:ncpus=1:ngpus=1:centos=icelake -l walltime=01:00:00
+
  1. ran spring-data.py : still spring-FGN.py says run spring-data.py --> sol python Spring-FGN.py 9
  2. do pdb.set_trace() for Spring-data.py 

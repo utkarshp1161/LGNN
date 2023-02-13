@@ -15,7 +15,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from jax import jit, random, value_and_grad, vmap
-from jax.experimental import optimizers
+from jax.experimental import optimizers # load ADAM from here
 from jax_md import space
 from shadow.plot import *
 from sklearn.metrics import r2_score
@@ -261,7 +261,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
 
     lnn_params_pe = MLP(N*dim, 1, key) # <class 'list'>, defining the neural network weights --> parameters
     lnn_params_ke = jnp.array(np.random.randn(N)) # (9,) 
-    pdb.set_trace()
+    #pdb.set_trace()
 
     def Lmodel(x, v, params):
         if trainm:
@@ -300,27 +300,36 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
                                                      constraints=None,
                                                      non_conservative_forces=drag)
     #acceleration_fn_model <function accelerationFull.<locals>.fn at 0x2ac84ff7c158>
-    v_acceleration_fn_model = vmap(acceleration_fn_model, in_axes=(0, 0, None))
+    v_acceleration_fn_model = vmap(acceleration_fn_model, in_axes=(0, 0, None)) # <function accelerationFull.<locals>.fn at 0x2b904ff06c80>
 
     ################################################
     ################## ML Training #################
     ################################################
 
-    LOSS = getattr(src.models, error_fn) #
-    pdb.set_trace()
+    LOSS = getattr(src.models, error_fn) #<function L2error at 0x2b904753e268> # get attribute error_fn of the object src.models # why not load directly?
+    #pdb.set_trace()
 
     @jit
     def loss_fn(params, Rs, Vs, Fs):
         pred = v_acceleration_fn_model(Rs, Vs, params)
-        return LOSS(pred, Fs)
+        return LOSS(pred, Fs) # loss(y_hat, y) --> 
 
     @jit
     def gloss(*args):
-        return value_and_grad(loss_fn)(*args)
+        return value_and_grad(loss_fn)(*args) # jax.value_and_grad --> Create a function that evaluates both fun and the gradient of fun.
 
     @jit
     def update(i, opt_state, params, loss__, *data):
-        """ Compute the gradient for a batch and update the parameters """
+        """ Compute the gradient for a batch and update the parameters 
+        Args:
+            i:
+            opt_state:
+            params:
+            loss__:
+            *data: R, v, F :-> pos, vel, forces?
+
+        
+        """
         value, grads_ = gloss(params, *data)
         opt_state = opt_update(i, grads_, opt_state)
         return opt_state, get_params(opt_state), value
@@ -329,7 +338,8 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     def step(i, ps, *args):
         return update(i, *ps, *args)
 
-    opt_init, opt_update_, get_params = optimizers.adam(lr)
+    opt_init, opt_update_, get_params = optimizers.adam(lr) # optimizer load: (init_fun, update_fun, get_params) triple. 
+    """https://jax.readthedocs.io/en/latest/_modules/jax/example_libraries/optimizers.html#adam"""
 
     @ jit
     def opt_update(i, grads_, opt_state):
@@ -367,42 +377,54 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
                                    for i in range(nbatches)])]
         return newargs
 
-    bRs, bVs, bFs = batching(Rs, Vs, Fs, size=batch_size) # data batched
+    bRs, bVs, bFs = batching(Rs, Vs, Fs, size=batch_size) # b means batched, data batched
 
     print(f"training ...")
 
-    opt_state = opt_init(params)
+    opt_state = opt_init(params) # initialize adam optimizer with params
     epoch = 0
     optimizer_step = -1
     larray = []
     ltarray = []
 
-    part = f"{ifdrag}_{datapoints}"
+    part = f"{ifdrag}_{datapoints}" # '0_None'
 
     last_loss = 1000
 
-    larray += [loss_fn(params, Rs, Vs, Fs)]
-    ltarray += [loss_fn(params, Rst, Vst, Fst)]
+    larray += [loss_fn(params, Rs, Vs, Fs)] # [DeviceArray(65490.94438603, dtype=float64)]
+    ltarray += [loss_fn(params, Rst, Vst, Fst)] # t means test, [DeviceArray(65221.98776716, dtype=float64)]
 
     def print_loss():
+        """Prints at every: epoch % saveat == 0 --> 10 iterations
+        Args: 
+            epoch: int
+            epochs: int default: 1000
+            error_fn: str default: "L2error"
+            larray: array
+            ltarray: array
+
+
+        
+        """
         print(
             f"Epoch: {epoch}/{epochs} Loss (mean of {error_fn}):  train={larray[-1]}, test={ltarray[-1]}")
 
-    print_loss()
+    print_loss() # Epoch: 0/10000 Loss (mean of L2error):  train=65490.94438602682, test=65221.98776715841
 
     for epoch in range(epochs):
-        for data in zip(bRs, bVs, bFs): # 
+        for data in zip(bRs, bVs, bFs): # (1000, 9, 2), (1000, 9, 2), (1000, 9, 2)--> batchsize =1000, 9 nodes, 2: x and y axes values of pos, vel and forces
+            #pdb.set_trace()
             optimizer_step += 1
             opt_state, params, l_ = step(
-                optimizer_step, (opt_state, params, 0), *data)
+                optimizer_step, (opt_state, params, 0), *data) # opt_state: <class 'jax.experimental.optimizers.OptimizerState'>, step: DeviceArray(66073.8246356, dtype=float64)
 
         # optimizer_step += 1
         # opt_state, params, l_ = step(
         #     optimizer_step, (opt_state, params, 0), Rs, Vs, Fs)
 
-        if epoch % saveat == 0:
+        if epoch % saveat == 0: # saveat == 10
             larray += [loss_fn(params, Rs, Vs, Fs)]
-            ltarray += [loss_fn(params, Rst, Vst, Fst)]
+            ltarray += [loss_fn(params, Rst, Vst, Fst)] # loss test array
             print_loss()
 
         if epoch % saveat == 0:
@@ -419,7 +441,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
                      (larray, ltarray), metadata=metadata)
             if last_loss > larray[-1]:
                 last_loss = larray[-1]
-                savefile(f"{TAG}_trained_model_{ifdrag}_{trainm}_low.dil",
+                savefile(f"{TAG}_trained_model_{ifdrag}_{trainm}_low.dil", # best model?
                          params, metadata=metadata)
 
     fig, axs = panel(1, 1)
@@ -432,7 +454,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
 
     params = get_params(opt_state)
     savefile(f"lnn_trained_model_{part}.dil",
-             params, metadata={"savedat": epoch})
+             params, metadata={"savedat": epoch})  # best model?
     savefile(f"loss_array_{part}.dil",
              (larray, ltarray), metadata={"savedat": epoch})
 
