@@ -47,7 +47,15 @@ def get_connections(a, b):
 
 
 def edge_order(N):
+    """Returns Order of edges? why twice size?
+    Args:
+        N: int -> 9?
+    
+    Return:
+        jnparray --> of len: 2N
+    """
     return jnp.array(list(range(N//2, N)) + list(range(N//2)), dtype=int)
+    # jnp.array(list(range(N//2, N)) + list(range(N//2)), dtype=int) --> DeviceArray([ 9, 10, 11, 12, 13, 14, 15, 16, 17,  0,  1,  2,  3,  4,  5, 6,  7,  8], dtype=int32)
 
 
 def get_init(N, *args, **kwargs):
@@ -137,7 +145,7 @@ def plot_conf(R, senders, receivers, s=500, **kwargs):
 
 
 def chain(N, L=2, dim=2):
-    """
+    """Returns R, V, senders, recievers
 
     Args: 
         N: int
@@ -148,11 +156,13 @@ def chain(N, L=2, dim=2):
     
     """
 
-    R = jnp.array(np.random.rand(N, dim))*L # shape (N, dim) 
-    V = jnp.array(np.random.rand(*R.shape)) / 10  # shape (N, dim)
-    V = V - V.mean(axis=0) 
+    R = jnp.array(np.random.rand(N, dim))*L # shape (N, dim) ==> (9, 2)
+    V = jnp.array(np.random.rand(*R.shape)) / 10  # shape (N, dim) ==. (9, 2)
+    V = V - V.mean(axis=0) # ==> (9, 2)
 
-    senders = [N-1] + list(range(0, N-1)) # concatenate: [0, 1, 2, 3, 4, ...., N-1]
-    receivers = list(range(N)) # [0, 1, 2, 3, 4, ...., N-1]
+    senders = [N-1] + list(range(0, N-1)) # [N-1, 0, 1, 2, ..N-2] #[8, 0, 1, 2, 3, 4, 5, 6, 7]
+    receivers = list(range(N)) # [0, 1, 2, 3, 4, ...., N-1] # [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
     return R, V, jnp.array(senders+receivers, dtype=int), jnp.array(receivers+senders, dtype=int)
+    # jnp.array(senders+receivers, dtype=int) --> DeviceArray([8, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=int32)
+    # jnp.array(receivers+senders, dtype=int) --> DeviceArray([0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 0, 1, 2, 3, 4, 5, 6, 7], dtype=int32)

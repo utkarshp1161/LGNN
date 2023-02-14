@@ -176,31 +176,31 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     print(
         f"Total number of data points: {len(dataset_states)}x{model_states.position.shape[0]}")
 
-    N, dim = model_states.position.shape[-2:] # 9, 2
+    N, dim = model_states.position.shape[-2:] # 9, 2 # model_states.position.keys() dict_keys(['position', 'velocity', 'force', 'mass'])
     masses = model_states.mass[0].flatten() # array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
     species = jnp.zeros(N, dtype=int) # DeviceArray([0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int64)
 
-    Rs, Vs, Fs = States().fromlist(dataset_states).get_array()  #  read position, velocities and forces
+    Rs, Vs, Fs = States().fromlist(dataset_states).get_array()  #  Rs.shape :(1000, 100, 9, 2) :: 1000 initial points , 100 trajectories for each initial point, 9 number of springs, 2: x and y
     Rs = Rs.reshape(-1, N, dim) # (100000, 9, 2)
     Vs = Vs.reshape(-1, N, dim) # (100000, 9, 2)
     Fs = Fs.reshape(-1, N, dim) # (100000, 9, 2)
     #pdb.set_trace()
 
-    mask = np.random.choice(len(Rs), len(Rs), replace=False) # (100000,)
+    mask = np.random.choice(len(Rs), len(Rs), replace=False) # (100000,) # shuffling the data
     allRs = Rs[mask] # (100000, 9, 2)  
     allVs = Vs[mask] # (100000, 9, 2)
     allFs = Fs[mask] # (100000, 9, 2)
 
     Ntr = int(0.75*len(Rs)) # 75000 ---> train set
     Nts = len(Rs) - Ntr # 25000 ----> test set
+    
+    Rs = allRs[:Ntr] # train set
+    Vs = allVs[:Ntr] # train set
+    Fs = allFs[:Ntr] # train set
 
-    Rs = allRs[:Ntr] 
-    Vs = allVs[:Ntr]
-    Fs = allFs[:Ntr]
-
-    Rst = allRs[Ntr:]
-    Vst = allVs[Ntr:]
-    Fst = allFs[Ntr:]
+    Rst = allRs[Ntr:] # test set
+    Vst = allVs[Ntr:] # test set
+    Fst = allFs[Ntr:] # test set
 
     #pdb.set_trace()
 

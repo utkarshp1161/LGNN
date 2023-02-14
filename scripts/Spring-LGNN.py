@@ -43,6 +43,7 @@ from src.md import *
 from src.models import MSE, initialize_mlp
 from src.nve import nve
 from src.utils import *
+import pdb as pdb
 
 # config.update("jax_enable_x64", True)
 # config.update("jax_debug_nans", True)
@@ -142,35 +143,37 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     if datapoints is not None:
         dataset_states = dataset_states[:datapoints]
 
-    model_states = dataset_states[0]
+    #dataset_states --> <class 'list'>  --> len : 1000
+    model_states = dataset_states[0]  # model_states.position.keys() dict_keys(['position', 'velocity', 'force', 'mass'])
 
     print(
         f"Total number of data points: {len(dataset_states)}x{model_states.position.shape[0]}")
 
-    N, dim = model_states.position.shape[-2:]
-    species = jnp.zeros(N, dtype=int)
-    masses = jnp.ones(N)
+    pdb.set_trace()
+    N, dim = model_states.position.shape[-2:] #
+    species = jnp.zeros(N, dtype=int) #species.shape - (9,)  array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
+    masses = jnp.ones(N) #  DeviceArray([0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int64)
 
-    Rs, Vs, Fs = States().fromlist(dataset_states).get_array()
-    Rs = Rs.reshape(-1, N, dim)
+    Rs, Vs, Fs = States().fromlist(dataset_states).get_array() # Rs.shape :(1000, 100, 9, 2) :: 1000 initial points , 100 trajectories for each initial point, 9 number of springs, 2: x and y
+    Rs = Rs.reshape(-1, N, dim) # (100000, 9, 2)
     Vs = Vs.reshape(-1, N, dim)
     Fs = Fs.reshape(-1, N, dim)
 
-    mask = np.random.choice(len(Rs), len(Rs), replace=False)
-    allRs = Rs[mask]
-    allVs = Vs[mask]
-    allFs = Fs[mask]
+    mask = np.random.choice(len(Rs), len(Rs), replace=False) # (100000,) #shuffling the data
+    allRs = Rs[mask] # (100000, 9, 2)  
+    allVs = Vs[mask] # (100000, 9, 2)
+    allFs = Fs[mask] # (100000, 9, 2)
 
-    Ntr = int(0.75*len(Rs))
-    Nts = len(Rs) - Ntr
+    Ntr = int(0.75*len(Rs)) # 75000 ---> train set
+    Nts = len(Rs) - Ntr # 25000 ----> test set
 
-    Rs = allRs[:Ntr]
-    Vs = allVs[:Ntr]
-    Fs = allFs[:Ntr]
+    Rs = allRs[:Ntr] # train set
+    Vs = allVs[:Ntr] # train set
+    Fs = allFs[:Ntr] # train set
 
-    Rst = allRs[Ntr:]
-    Vst = allVs[Ntr:]
-    Fst = allFs[Ntr:]
+    Rst = allRs[Ntr:] # test set
+    Vst = allVs[Ntr:] # test set
+    Fst = allFs[Ntr:] # test set
 
     ################################################
     ################## SYSTEM ######################
@@ -218,15 +221,16 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         a = int(np.sqrt(N))
         senders, receivers = get_connections(a, a)
         eorder = edge_order(len(senders))
-    else:
+    else: # default: executes
         print("It's a random?")
         # senders, receivers = get_fully_connected_senders_and_receivers(N)
         print("Creating Chain")
-        _, _, senders, receivers = chain(N)
-        eorder = edge_order(len(senders))
+        _, _, senders, receivers = chain(N) # in psystems/nsprings.py <function chain at 0x2b47248579d8>
+        # senders.shape--> (18,), recievers.shape --> (18,)
+        eorder = edge_order(len(senders)) # in psystems/nsprings.py # shape-> (18,)
 
     Ef = 1  # eij dim
-    Nf = dim
+    Nf = dim # x and y axes--> 2 dimensions
     Oh = 1
 
     Eei = 5
