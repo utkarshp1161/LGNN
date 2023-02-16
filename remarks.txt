@@ -5,3 +5,5 @@
 
  1. ran spring-data.py : still spring-FGN.py says run spring-data.py --> sol python Spring-FGN.py 9
  2. do pdb.set_trace() for Spring-data.py 
+
+ come back : /scratch/sire/phd/srz228573/benchmarking/LGNN/src/graph.py(452)initial_node_emb_fn()

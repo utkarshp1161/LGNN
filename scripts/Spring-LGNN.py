@@ -37,7 +37,7 @@ import jraph
 import src
 from jax.config import config
 from src import lnn
-from src.graph import *
+from src.graph import * # cal_graph
 from src.lnn import acceleration, accelerationFull, accelerationTV
 from src.md import *
 from src.models import MSE, initialize_mlp
@@ -85,6 +85,11 @@ def Main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
 
 def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
          dt=1.0e-3, ifdrag=0, stride=100, trainm=1, grid=False, mpass=1, lr=0.001, withdata=None, datapoints=None, batch_size=1000, config=None):
+         """
+         Args:
+            mpass: int --> number of message passing (sent to cal_graph())
+         
+         """
 
     # print("Configs: ")
     # pprint(N, epochs, seed, rname,
@@ -149,7 +154,6 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     print(
         f"Total number of data points: {len(dataset_states)}x{model_states.position.shape[0]}")
 
-    pdb.set_trace()
     N, dim = model_states.position.shape[-2:] #
     species = jnp.zeros(N, dtype=int) #species.shape - (9,)  array([1., 1., 1., 1., 1., 1., 1., 1., 1.])
     masses = jnp.ones(N) #  DeviceArray([0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int64)
@@ -231,31 +235,220 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
 
     Ef = 1  # eij dim
     Nf = dim # x and y axes--> 2 dimensions
-    Oh = 1
+    Oh = 1 # ? mean
 
-    Eei = 5
-    Nei = 5
+    Eei = 5 # mean?
+    Nei = 5 # mean?
 
-    hidden = 5
-    nhidden = 2
+    hidden = 5 # mean?
+    nhidden = 2 # mean?
+
+
 
     def get_layers(in_, out_):
-        return [in_] + [hidden]*nhidden + [out_]
+        """
+        Args:
+            in_ = 1
+            out_ = 5
+        
+        """
+        return [in_] + [hidden]*nhidden + [out_] # [1, 5, 5, 5]
 
     def mlp(in_, out_, key, **kwargs):
+        """
+        Args:
+            in_ = 1
+            out_ = 5
+            key = DeviceArray([ 0, 42], dtype=uint32)
+            kwargs = {}
+        
+        """
         return initialize_mlp(get_layers(in_, out_), key, **kwargs)
 
-    fneke_params = initialize_mlp([Oh, Nei], key)
+    fneke_params = initialize_mlp([Oh, Nei], key) # src/models.py # [Oh, Nei] -> [0, 5] # key --> DeviceArray([ 0, 42], dtype=uint32)
+    """
+        fneke_params:
+        [(DeviceArray([[ 2.075412  ],
+                    [ 0.23462065],
+                    [ 0.558156  ],
+                    [-1.1863935 ],
+                    [ 0.882776  ]], dtype=float32), DeviceArray([-0.32761326, -0.40663472,  1.2469069 ,  1.1900423 ,
+                    1.1002629 ], dtype=float32))]
+    
+    """
+    
     fne_params = initialize_mlp([Oh, Nei], key)
+    """
+        fne_params:
+        [(DeviceArray([[ 2.075412  ],
+                    [ 0.23462065],
+                    [ 0.558156  ],
+                    [-1.1863935 ],
+                    [ 0.882776  ]], dtype=float32), DeviceArray([-0.32761326, -0.40663472,  1.2469069 ,  1.1900423 ,
+                    1.1002629 ], dtype=float32))]
+    
+    """
+
 
     fb_params = mlp(Ef, Eei, key)
+    """
+        fb_parmas:
+        [(DeviceArray([[ 0.7041197 ],
+                [-0.155193  ],
+                [ 1.5854169 ],
+                [-0.47837773],
+                [-1.1402668 ]], dtype=float32), DeviceArray([-0.3681209, -1.0425483,  0.3811884, -1.4299325,  0.5978892],            dtype=float32)), (DeviceArray([[ 0.0065853 , -1.084224  , -0.90702647, -1.0937953 ,
+                2.3816905 ],
+                [ 0.5397879 , -0.87493896, -1.3264493 , -0.55544454,
+                0.07416377],
+                [ 0.40697423, -0.11366126, -0.9201015 , -0.0751691 ,
+                -0.42749977],
+                [ 1.9849769 ,  1.388724  , -0.12409643,  1.1750995 ,
+                1.5956461 ],
+                [-0.92417973, -0.9839055 , -1.8888152 , -1.0319374 ,
+                -1.5857583 ]], dtype=float32), DeviceArray([ 1.7153422 , -0.36852255, -0.06004705, -0.25918266,
+                0.24561109], dtype=float32)), (DeviceArray([[-0.34064734,  0.3280096 , -1.3356769 , -1.4240383 ,
+                0.06739006],
+                [-0.1112586 ,  1.1080816 , -0.8993317 ,  1.9280013 ,
+                -0.3039846 ],
+                [-0.24217628,  2.6567311 ,  1.3840958 ,  0.7180243 ,
+                2.026078  ],
+                [-2.2601595 ,  0.72958964,  1.6668926 , -0.6043215 ,
+                -1.6963521 ],
+                [ 0.23098028, -0.00758455, -1.2909052 ,  1.0563565 ,
+                0.3306756 ]], dtype=float32), DeviceArray([ 1.6468883 , -0.7328745 ,  0.6258243 , -0.72865653,
+                0.5730015 ], dtype=float32))]
+    
+    """
     fv_params = mlp(Nei+Eei, Nei, key)
+    """
+    fv_parmas
+    [(DeviceArray([[-0.52624   , -0.8593089 , -1.9649656 , -2.6234684 ,
+               0.288977  , -0.49506813, -0.10955065, -1.0215906 ,
+               0.414581  ,  0.1888758 ],
+             [-0.8503892 , -1.0705473 , -0.57748204,  0.93424314,
+               0.08109591, -0.5390684 , -0.34153157,  0.66879934,
+              -0.76888514,  0.58857256],
+             [ 0.3404925 ,  0.06593669, -1.3318399 , -0.97811824,
+               0.23976856,  0.09856878,  2.1316717 , -0.8348885 ,
+               0.18358092, -0.37996858],
+             [ 0.17217878, -0.64218897,  1.8151029 ,  1.4846883 ,
+              -1.7278991 , -1.4115331 ,  0.00714499, -0.65353966,
+              -0.55116683, -0.25311267],
+             [-1.1598504 , -0.77897507, -1.3732234 , -0.13761204,
+              -2.8188167 ,  0.18389334, -0.5832496 ,  0.9870668 ,
+              -0.8391157 ,  1.1551105 ]], dtype=float32), DeviceArray([-0.3681209, -1.0425483,  0.3811884, -1.4299325,  0.5978892],            dtype=float32)), (DeviceArray([[ 0.0065853 , -1.084224  , -0.90702647, -1.0937953 ,
+               2.3816905 ],
+             [ 0.5397879 , -0.87493896, -1.3264493 , -0.55544454,
+               0.07416377],
+             [ 0.40697423, -0.11366126, -0.9201015 , -0.0751691 ,
+              -0.42749977],
+             [ 1.9849769 ,  1.388724  , -0.12409643,  1.1750995 ,
+               1.5956461 ],
+             [-0.92417973, -0.9839055 , -1.8888152 , -1.0319374 ,
+              -1.5857583 ]], dtype=float32), DeviceArray([ 1.7153422 , -0.36852255, -0.06004705, -0.25918266,
+              0.24561109], dtype=float32)), (DeviceArray([[-0.34064734,  0.3280096 , -1.3356769 , -1.4240383 ,
+               0.06739006],
+             [-0.1112586 ,  1.1080816 , -0.8993317 ,  1.9280013 ,
+              -0.3039846 ],
+             [-0.24217628,  2.6567311 ,  1.3840958 ,  0.7180243 ,
+               2.026078  ],
+             [-2.2601595 ,  0.72958964,  1.6668926 , -0.6043215 ,
+              -1.6963521 ],
+             [ 0.23098028, -0.00758455, -1.2909052 ,  1.0563565 ,
+               0.3306756 ]], dtype=float32), DeviceArray([ 1.6468883 , -0.7328745 ,  0.6258243 , -0.72865653,
+              0.5730015 ], dtype=float32))]
+    
+    
+    """
     fe_params = mlp(Nei, Eei, key)
 
     ff1_params = mlp(Eei, 1, key)
     ff2_params = mlp(Nei, 1, key)
     ff3_params = mlp(dim+Nei, 1, key)
+    """
+    ff3_parmas:
+        [(DeviceArray([[-1.473235  , -0.3015993 , -1.4777459 , -0.89958614,
+                0.61375004,  0.77757746, -0.27506098],
+                [ 0.56382036,  0.2546131 ,  1.0025856 ,  0.06507307,
+                0.6341238 ,  0.440264  , -0.5869762 ],
+                [ 1.5369172 , -0.4693531 ,  0.22295444, -1.3559561 ,
+                -1.2421908 , -0.18677211, -0.14929186],
+                [-0.53434426,  2.089592  , -0.7393486 , -1.9540367 ,
+                -0.11162121, -0.05698226,  0.43866852],
+                [ 1.7334421 ,  1.1154425 ,  0.30640864, -0.6547044 ,
+                1.506656  , -0.47826478,  1.3948326 ]], dtype=float32), DeviceArray([-0.3681209, -1.0425483,  0.3811884, -1.4299325,  0.5978892],            dtype=float32)), (DeviceArray([[ 0.0065853 , -1.084224  , -0.90702647, -1.0937953 ,
+                2.3816905 ],
+                [ 0.5397879 , -0.87493896, -1.3264493 , -0.55544454,
+                0.07416377],
+                [ 0.40697423, -0.11366126, -0.9201015 , -0.0751691 ,
+                -0.42749977],
+                [ 1.9849769 ,  1.388724  , -0.12409643,  1.1750995 ,
+                1.5956461 ],
+                [-0.92417973, -0.9839055 , -1.8888152 , -1.0319374 ,
+                -1.5857583 ]], dtype=float32), DeviceArray([ 1.7153422 , -0.36852255, -0.06004705, -0.25918266,
+                0.24561109], dtype=float32)), (DeviceArray([[ 1.3687004 , -1.1934799 ,  1.9728705 ,  0.6608229 ,
+                0.02296194]], dtype=float32), DeviceArray([0.21072027], dtype=float32))]
+    
+    
+    """
     ke_params = initialize_mlp([1+Nei, 10, 10, 1], key, affine=[True])
+    """
+    ke_parmas:
+        [(DeviceArray([[ 0.00322629, -0.89955616,  0.62765497,  1.1348032 ,
+                -0.6810764 ,  1.6817735 ],
+                [-1.4994512 ,  1.455188  , -1.8684514 , -1.4111335 ,
+                0.34427443,  0.3897102 ],
+                [ 1.0976006 , -1.7042897 , -0.01491493,  0.21004632,
+                -1.1919748 ,  0.5026559 ],
+                [-0.6358833 ,  0.58948463, -0.19513735, -1.0321059 ,
+                -0.12748118,  0.7405304 ],
+                [-0.844815  , -0.154417  ,  1.0247767 ,  0.11422939,
+                0.28967494,  1.1516122 ],
+                [-1.6981575 ,  0.47032514, -0.27696633,  0.27591047,
+                0.00329801, -0.45859522],
+                [-1.2164251 , -0.1717648 , -0.96491796, -0.06828167,
+                0.53883725,  0.8543786 ],
+                [ 0.7089056 , -1.004556  ,  0.11919532,  0.65107816,
+                -0.30539724, -1.2796072 ],
+                [-2.6501772 , -0.6494678 ,  1.2331777 ,  0.37309495,
+                0.40770796, -0.46637172],
+                [-1.9542568 , -0.9474447 , -2.1213527 , -0.2898174 ,
+                -0.97899985, -0.18828417]], dtype=float32), DeviceArray([ 0., -0.,  0., -0.,  0.,  0., -0., -0.,  0.,  0.], dtype=float32)), (DeviceArray([[ 1.6753788 , -0.41598487, -1.4071592 , -1.091225  ,
+                -1.632567  , -0.44361305, -0.12116553,  0.5742298 ,
+                0.72286385,  0.7550807 ],
+                [-0.30755505,  1.9392498 , -0.20337962, -0.50147027,
+                -0.6147438 ,  0.99478966,  0.72862065,  0.3497895 ,
+                0.7582579 ,  0.8922674 ],
+                [-0.15416694, -0.06859886, -0.74683523,  0.08216983,
+                -0.31330082, -0.24141693,  0.38588148, -0.06856951,
+                0.37046674,  1.4505005 ],
+                [-0.54168355, -1.837251  , -1.7911594 ,  0.88038605,
+                -1.5697381 ,  0.45255944,  0.4566668 , -1.8899494 ,
+                0.758542  , -1.2547628 ],
+                [ 0.6603963 ,  0.21346863,  1.5689476 ,  0.5235863 ,
+                -0.28961483, -0.6250768 , -0.65715873, -0.00596076,
+                -1.9933869 , -0.22522618],
+                [ 0.01588469,  2.2302105 ,  0.68902767, -0.5325508 ,
+                1.3785113 ,  0.0699767 ,  1.6464918 , -1.3147717 ,
+                -0.94136727, -0.13116756],
+                [-0.9063527 , -1.401032  ,  0.8697437 ,  1.1258745 ,
+                -0.891545  ,  0.05492619, -1.656186  ,  0.5050847 ,
+                -1.2692127 , -0.6930687 ],
+                [ 0.14924382, -0.5604624 ,  1.480729  ,  0.72572625,
+                -0.11553544,  0.5025322 ,  0.30464813, -0.18321568,
+                0.32872042,  1.9893782 ],
+                [-1.7927711 ,  1.9783881 ,  0.5101261 , -0.26589304,
+                1.3015552 , -0.8845139 , -0.9819137 ,  0.04577835,
+                1.9722056 , -0.44299528],
+                [-0.9286923 , -0.4924002 , -1.9730735 , -1.299754  ,
+                1.0746211 ,  0.25494245, -1.2052305 ,  0.9650887 ,
+                1.70771   ,  0.13407326]], dtype=float32), DeviceArray([-0.,  0., -0.,  0., -0.,  0.,  0.,  0.,  0.,  0.], dtype=float32)), (DeviceArray([[ 0.78722817, -1.2488708 ,  0.8947005 ,  2.0549572 ,
+                0.9555017 , -0.13302046, -0.9986346 ,  1.0912364 ,
+                1.2329265 ,  0.564678  ]], dtype=float32), DeviceArray([0.], dtype=float32))]
+    
+    
+    """
 
     Lparams = dict(fb=fb_params,
                    fv=fv_params,
@@ -267,11 +460,17 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
                    fneke=fneke_params,
                    ke=ke_params)
 
-    if trainm:
+    """
+    Lparams.keys():
+        dict_keys(['fb', 'fv', 'fe', 'ff1', 'ff2', 'ff3', 'fne', 'fneke', 'ke'])
+
+    """
+
+    if trainm: # trainm =1 --> true
         print("kinetic energy: learnable")
 
         def L_energy_fn(params, graph):
-            g, V, T = cal_graph(params, graph, mpass=mpass, eorder=eorder,
+            g, V, T = cal_graph(params, graph, mpass=mpass, eorder=eorder, # /LGNN/src/graph.py
                                 useT=True, useonlyedge=True)
             return T - V
 
@@ -281,25 +480,39 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         kin_energy = partial(lnn._T, mass=masses)
 
         def L_energy_fn(params, graph):
+            """
+            Args:
+                params: dict --> params.keys() --> dict_keys(['fb', 'fv', 'fe', 'ff1', 'ff2', 'ff3', 'fne', 'fneke', 'ke'])
+
+                
+                graph:  jraph.GraphsTuple
+
+            
+            
+            
+            """
             g, V, T = cal_graph(params, graph, mpass=mpass, eorder=eorder,
                                 useT=True, useonlyedge=True)
             return kin_energy(graph.nodes["velocity"]) - V
 
-    R, V = Rs[0], Vs[0]
+    R, V = Rs[0], Vs[0] # inital vel and pos--> R and v shape: (9, 2) 9springs and x and y axes
 
-    state_graph = jraph.GraphsTuple(nodes={
+
+    state_graph = jraph.GraphsTuple(nodes={  # GraphsTuple treat it like a list
         "position": R,
         "velocity": V,
         "type": species,
     },
         edges={},
-        senders=senders,
+        senders=senders, # recall: created by chain(N)
         receivers=receivers,
         n_node=jnp.array([N]),
         n_edge=jnp.array([senders.shape[0]]),
         globals={})
 
+    pdb.set_trace()
     L_energy_fn(Lparams, state_graph)
+
 
     def energy_fn(species):
         state_graph = jraph.GraphsTuple(nodes={

@@ -8,18 +8,35 @@ from .io import loadfile, savefile
 
 
 def initialize_mlp(sizes, key, affine=[False], scale=1.0):
-    """ Initialize the weights of all layers of a linear layer network """
-    keys = random.split(key, len(sizes))
+    """ Initialize the weights of all layers of a linear layer network 
+    sizes = [1, 5]
+    key = DeviceArray([ 0, 42], dtype=uint32)
+    affine = [False]
+    scale = 1.0
+    
+    """
+    keys = random.split(key, len(sizes)) #DeviceArray([[2465931498, 3679230171],[ 255383827,  267815257]], dtype=uint32)
     # Initialize a single layer with Gaussian weights -  helper function
-    if len(affine) != len(sizes):
-        affine = [affine[0]]*len(sizes)
-    affine[-1] = True
+    if len(affine) != len(sizes): # executed
+        affine = [affine[0]]*len(sizes) # [False, False]
+    affine[-1] = True # [False, True]
 
     def initialize_layer(m, n, key, affine=True, scale=1e-2):
-        w_key, b_key = random.split(key)
+        """
+        Args:
+            m = 1
+            n = 5
+            key = array([2954079971, 2575172198], dtype=uint32)
+            affine = False
+            scale = 1.0
+        
+        
+        """
+
+        w_key, b_key = random.split(key) # DeviceArray([[2465931498, 3679230171],[ 255383827,  267815257]], dtype=uint32)
         if affine:
             return scale * random.normal(w_key, (n, m)), 0 * random.normal(b_key, (n,))
-        else:
+        else: # executed
             return scale * random.normal(w_key, (n, m)), scale * random.normal(b_key, (n,))
     return [initialize_layer(m, n, k, affine=a, scale=scale) for m, n, k, a in zip(sizes[:-1], sizes[1:], keys, affine)]
 

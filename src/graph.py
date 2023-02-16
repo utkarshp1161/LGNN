@@ -8,7 +8,7 @@ from typing import Any, Callable, Iterable, Mapping, Optional, Union
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as tree
+import jax.tree_util as tree # used at line 215 in this file
 import numpy as np
 from frozendict import frozendict
 from jax import vmap
@@ -145,8 +145,33 @@ def GNNet(
     Returns:
       A method that applies the configured GraphNetwork.
     """
-    def not_both_supplied(x, y): return (
-        x != y) and ((x is None) or (y is None))
+    """
+    Args:
+        V_fn = <function cal_graph.<locals>.edge_node_to_V_fn at 0x2b48b3fe0840>
+        initial_edge_embed_fn = <function cal_graph.<locals>.initial_edge_emb_fn at 0x2b492fe2d378>
+        initial_node_embed_fn = <function cal_graph.<locals>.initial_node_emb_fn at 0x2b492fe2dbf8>
+        update_edge_fn = <function cal_graph.<locals>.update_edge_fn at 0x2b48b3ffa6a8>
+        update_node_fn = <function cal_graph.<locals>.update_node_fn at 0x2b48b3ffa7b8>
+        T_fn = <function cal_graph.<locals>.node_to_T_fn at 0x2b48b3fe08c8>
+        update_global_fn = None
+        aggregate_nodes_for_globals_fn = <function segment_sum at 0x2b47af860840>
+        aggregate_edges_for_globals_fn = <function segment_sum at 0x2b47af860840>
+        attention_logit_fn = None
+        attention_normalize_fn = <function segment_softmax at 0x2b47af860d08>
+        attention_reduce_fn = None
+        N = 1
+    
+    
+    """
+    def not_both_supplied(x, y): 
+        """
+        Args:
+            x: attention_logit_fn = None
+            y: attention_reduce_fn = None
+        
+        Returns: Boolean
+        """
+        return  (x != y) and ((x is None) or (y is None))
     if not_both_supplied(attention_reduce_fn, attention_logit_fn):
         raise ValueError(('attention_logit_fn and attention_reduce_fn must both be'
                           ' supplied.'))
@@ -166,7 +191,8 @@ def GNNet(
 
         Many popular Graph Neural Networks can be implemented as special cases of
         GraphNets, for more information please see the paper.
-
+        """
+        """
         Args:
           graph: a `GraphsTuple` containing the graph.
 
@@ -180,10 +206,10 @@ def GNNet(
         # Equivalent to jnp.sum(n_node), but jittable
 
         # calculate number of nodes in graph
-        sum_n_node = tree.tree_leaves(nodes)[0].shape[0]
+        sum_n_node = tree.tree_leaves(nodes)[0].shape[0] # 9
 
         # calculate number of edges in graph
-        sum_n_edge = senders.shape[0]
+        sum_n_edge = senders.shape[0] # 18
 
         # check if all all node array are of same length = number of nodes
         if not tree.tree_all(
@@ -210,16 +236,17 @@ def GNNet(
             g, n_node, axis=0, total_repeat_length=sum_n_node), globals_)
 
         # apply initial edge embeddings
-        if initial_edge_embed_fn:
+        if initial_edge_embed_fn: # <function cal_graph.<locals>.initial_edge_emb_fn at 0x2b1cfd8707b8>
             edges = initial_edge_embed_fn(edges, sent_attributes, received_attributes,
                                           global_edge_attributes)
-        # apply initial node embeddings
-        if initial_node_embed_fn:
+            # edges ==> dict_keys(['edge_embed', 'eij'])--> shape (18,5) and (18,1)
+        # apply initial node embeddings #--------------------------------------->
+        if initial_node_embed_fn: # <function cal_graph.<locals>.initial_node_emb_fn at 0x2b1cfd862e18>
             nodes = initial_node_embed_fn(nodes, sent_attributes,
                                           received_attributes, global_attributes)
 
-        # Now perform message passing for N times
-        for pass_i in range(N):
+        # Now perform message passing for N times #------------------------------>
+        for pass_i in range(N): # N times message passing
             if attention_logit_fn:
                 logits = attention_logit_fn(edges, sent_attributes, received_attributes,
                                             global_edge_attributes)
@@ -316,6 +343,18 @@ def get_fully_connected_senders_and_receivers(
 
 def cal_graph(params, graph, eorder=None, mpass=1,
               useT=True, useonlyedge=False, act_fn=SquarePlus):
+    """
+    Args:
+        params: dict --> params.keys() --> dict_keys(['fb', 'fv', 'fe', 'ff1', 'ff2', 'ff3', 'fne', 'fneke', 'ke'])
+        graph:  jraph.GraphsTuple
+        mpass: int -> = 1
+        useT: Boolean --> True
+        useonlyedge: Boolean  ---> True
+        act_fn: activation fn --> <function SquarePlus at 0x2b47b42e7ea0>
+
+
+    Returns: what GNNet(graph) returns
+    """
     fb_params = params["fb"]
     fne_params = params["fne"]
     fneke_params = params["fneke"]
@@ -326,7 +365,7 @@ def cal_graph(params, graph, eorder=None, mpass=1,
     ff3_params = params["ff3"]
     ke_params = params["ke"]
 
-    num_species = 1
+    num_species = 1 # means?
 
     def onehot(n):
         def fn(n):
@@ -336,8 +375,11 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         return out
 
     def fne(n):
+        """
+
+        """
         def fn(ni):
-            out = forward_pass(fne_params, ni, activation_fn=lambda x: x)
+            out = forward_pass(fne_params, ni, activation_fn=lambda x: x) # in src.models.py
             return out
         out = vmap(fn, in_axes=(0))(n)
         return out
@@ -350,10 +392,15 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         return out
 
     def fb(e):
+        """
+        Args:
+            e: Device array -> shape (18,1)
+        
+        """
         def fn(eij):
-            out = forward_pass(fb_params, eij, activation_fn=act_fn)
+            out = forward_pass(fb_params, eij, activation_fn=act_fn)  # in src.models.py
             return out
-        out = vmap(fn, in_axes=(0))(e)
+        out = vmap(fn, in_axes=(0))(e) # shape (18, 5)
         return out
 
     def fv(n, e, s, r, sum_n_node):
@@ -400,18 +447,41 @@ def cal_graph(params, graph, eorder=None, mpass=1,
     # ================================================================================
 
     def initial_edge_emb_fn(edges, senders, receivers, globals_):
-        del edges, globals_
-        dr = (senders["position"] - receivers["position"])
+        """Returns 
+        Args:
+            edges: dict --> {}
+            globals: 
+            senders: dict --> dict_keys(['position', 'type', 'velocity'])
+            receivers: dict --> dict_keys(['position', 'type', 'velocity'])
+
+
+
+        
+        
+        """
+
+        del edges, globals_ # deleting since empty initially ?
+        dr = (senders["position"] - receivers["position"]) # r2 - r2 => dr, dr.shape: (18, 2)
         # eij = dr
-        eij = jnp.sqrt(jnp.square(dr).sum(axis=1, keepdims=True))
-        emb = fb(eij)
+        eij = jnp.sqrt(jnp.square(dr).sum(axis=1, keepdims=True)) # edge ijth? --> (18, 1)
+        emb = fb(eij) # emb means embedding? shape --> (18, 5)
         return frozendict({"edge_embed": emb, "eij": eij})
 
     def initial_node_emb_fn(nodes, sent_edges, received_edges, globals_):
+        """
+        Args:
+            nodes: dict: dict_keys(['position', 'velocity', 'type'])
+            sent_edges: dict_keys(['position', 'type', 'velocity'])
+            received_edges: dict_keys(['position', 'type', 'velocity'])
+            globals_: <built-in function globals>
+
+        
+        
+        """
         del sent_edges, received_edges, globals_
-        type_of_node = nodes["type"]
-        ohe = onehot(type_of_node)
-        emb = fne(ohe)
+        type_of_node = nodes["type"] # DeviceArray([0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int32)
+        ohe = onehot(type_of_node) # DeviceArray([1, 1, 1, 1, 1, 1, 1, 1, 1].T
+        emb = fne(ohe) # shape -- (9, 5)
         emb_pos = jnp.hstack([emb, nodes["position"]])
         emb_vel = jnp.hstack(
             [fneke(ohe), jnp.sum(jnp.square(nodes["velocity"]), axis=1, keepdims=True)])
@@ -438,7 +508,7 @@ def cal_graph(params, graph, eorder=None, mpass=1,
                        receivers["node_embed"], senders["node_embed"])) / 2
         return frozendict({"edge_embed": emb, "eij": edges["eij"]})
 
-    if useonlyedge:
+    if useonlyedge: # True
         def edge_node_to_V_fn(edges, nodes):
             vij = ff1(edges["edge_embed"])
             # print(vij, edges["eij"])
@@ -454,10 +524,10 @@ def cal_graph(params, graph, eorder=None, mpass=1,
     def node_to_T_fn(nodes):
         return ke(nodes["node_vel_embed"]).sum()
 
-    if not(useT):
+    if not(useT): # false
         node_to_T_fn = None
 
-    Net = GNNet(N=mpass,
+    Net = GNNet(N=mpass, # N : message passing?   #/src/graph.py(88)GNNet()
                 V_fn=edge_node_to_V_fn,
                 T_fn=node_to_T_fn,
                 initial_edge_embed_fn=initial_edge_emb_fn,
@@ -465,4 +535,4 @@ def cal_graph(params, graph, eorder=None, mpass=1,
                 update_edge_fn=update_edge_fn,
                 update_node_fn=update_node_fn)
 
-    return Net(graph)
+    return Net(graph) # returns what Net(graph) returns
