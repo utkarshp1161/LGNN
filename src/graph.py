@@ -16,7 +16,7 @@ from jraph._src import graph as gn_graph
 from jraph._src import utils
 
 from .models import SquarePlus, forward_pass
-
+import pdb as pdb
 jax.tree_util.register_pytree_node(
     frozendict,
     flatten_func=lambda s: (tuple(s.values()), tuple(s.keys())),
@@ -234,20 +234,21 @@ def GNNet(
         # i.e create an array per node for global attributes
         global_attributes = tree.tree_map(lambda g: jnp.repeat(
             g, n_node, axis=0, total_repeat_length=sum_n_node), globals_)
-
+        """ Node and edge embedding initialize------------------------below:"""
         # apply initial edge embeddings
         if initial_edge_embed_fn: # <function cal_graph.<locals>.initial_edge_emb_fn at 0x2b1cfd8707b8>
             edges = initial_edge_embed_fn(edges, sent_attributes, received_attributes,
                                           global_edge_attributes)
-            # edges ==> dict_keys(['edge_embed', 'eij'])--> shape (18,5) and (18,1)
+            """edges ==> dict_keys(['edge_embed', 'eij'])--> shape (18,5) and (18,1)"""
         # apply initial node embeddings #--------------------------------------->
         if initial_node_embed_fn: # <function cal_graph.<locals>.initial_node_emb_fn at 0x2b1cfd862e18>
             nodes = initial_node_embed_fn(nodes, sent_attributes,
                                           received_attributes, global_attributes)
-
+            """nodes: dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])"""
+        """message passing ------------------------------------------below"""
         # Now perform message passing for N times #------------------------------>
         for pass_i in range(N): # N times message passing
-            if attention_logit_fn:
+            if attention_logit_fn: # false usually
                 logits = attention_logit_fn(edges, sent_attributes, received_attributes,
                                             global_edge_attributes)
                 tree_calculate_weights = functools.partial(
@@ -257,20 +258,25 @@ def GNNet(
                 weights = tree.tree_map(tree_calculate_weights, logits)
                 edges = attention_reduce_fn(edges, weights)
 
-            if update_node_fn:
+
+            """update node dict"""
+            if update_node_fn: # <function cal_graph.<locals>.update_node_fn at 0x2ac741250488>
                 nodes = update_node_fn(
                     nodes, edges, senders, receivers,
                     global_attributes, sum_n_node)
 
+
+            """update edge dict"""
             if update_edge_fn:
-                senders_attributes = tree.tree_map(
+                senders_attributes = tree.tree_map( # DeviceArray([8, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=int32)
                     lambda n: n[senders], nodes)
-                receivers_attributes = tree.tree_map(
+                receivers_attributes = tree.tree_map( # DeviceArray([0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 0, 1, 2, 3, 4, 5, 6, 7], dtype=int32)
                     lambda n: n[receivers], nodes)
-                edges = update_edge_fn(edges, senders_attributes, receivers_attributes,
+                #pdb.set_trace()
+                edges = update_edge_fn(edges, senders_attributes, receivers_attributes, # <function cal_graph.<locals>.update_edge_fn 
                                        global_edge_attributes, pass_i == N-1)
 
-        if update_global_fn:
+        if update_global_fn: # not executed initially
             n_graph = n_node.shape[0]
             graph_idx = jnp.arange(n_graph)
             # To aggregate nodes and edges from each graph to global features,
@@ -295,15 +301,15 @@ def GNNet(
                 node_attributes, edge_attribtutes, globals_)
 
         V = 0.0
-        if V_fn is not None:
-            V += V_fn(edges, nodes)
+        if V_fn is not None: # <function cal_graph.<locals>.edge_node_to_V_
+            V += V_fn(edges, nodes) # DeviceArray(504125.16, dtype=float32)
 
         T = 0.0
-        if T_fn is not None:
-            T += T_fn(nodes)
+        if T_fn is not None: # <function cal_graph.<locals>.node_to_T_fn
+            T += T_fn(nodes) # DeviceArray(58.41084, dtype=float32)
 
         # pylint: enable=g-long-lambda
-        return gn_graph.GraphsTuple(
+        return gn_graph.GraphsTuple(  # <module 'jraph._src.graph' 
             nodes=nodes,
             edges=edges,
             receivers=receivers,
@@ -347,10 +353,12 @@ def cal_graph(params, graph, eorder=None, mpass=1,
     Args:
         params: dict --> params.keys() --> dict_keys(['fb', 'fv', 'fe', 'ff1', 'ff2', 'ff3', 'fne', 'fneke', 'ke'])
         graph:  jraph.GraphsTuple
+        eorder: DeviceArray([ 9, 10, 11, 12, 13, 14, 15, 16, 17,  0,  1,  2,  3,  4,  5, 6,  7,  8], dtype=int32)
         mpass: int -> = 1
         useT: Boolean --> True
         useonlyedge: Boolean  ---> True
         act_fn: activation fn --> <function SquarePlus at 0x2b47b42e7ea0>
+        
 
 
     Returns: what GNNet(graph) returns
@@ -374,9 +382,20 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         out = vmap(fn)(n.reshape(-1,))
         return out
 
-    def fne(n):
+    def fne(n): # called by  initial_node_emb_fn
         """
-
+        Args:
+            n = DeviceArray([[1.],
+                [1.],
+                [1.],
+                [1.],
+                [1.],
+                [1.],
+                [1.],
+                [1.],
+                [1.]], dtype=float32)
+                
+        Returns: DeviceArray,  shape  -> (9,5)        
         """
         def fn(ni):
             out = forward_pass(fne_params, ni, activation_fn=lambda x: x) # in src.models.py
@@ -391,7 +410,7 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         out = vmap(fn, in_axes=(0))(n)
         return out
 
-    def fb(e):
+    def fb(e): # called by initial_edge_emb_fn
         """
         Args:
             e: Device array -> shape (18,1)
@@ -403,12 +422,31 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         out = vmap(fn, in_axes=(0))(e) # shape (18, 5)
         return out
 
-    def fv(n, e, s, r, sum_n_node):
-        c1ij = jnp.hstack([n[r], e])
-        out = vmap(lambda x: forward_pass(fv_params, x))(c1ij)
-        return n + jax.ops.segment_sum(out, r, sum_n_node)
+    def fv(n, e, s, r, sum_n_node): # called by update_node_fn
+        """
+        Args:
+            nodes: frozendict --> dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
+            edges: frozendict --> dict_keys(['edge_embed', 'eij'])
+            senders = DeviceArray([8, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=int32)
+            receivers = DeviceArray([0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 0, 1, 2, 3, 4, 5, 6, 7], dtype=int32)
+            globals_: dict = {}
+            sum_n_node: int = 9
+        
+        Returns: DeviceArray: (9, 5)
+        
+        """
+        c1ij = jnp.hstack([n[r], e]) # shape: (18, 10)
+        out = vmap(lambda x: forward_pass(fv_params, x))(c1ij) # shape (18, 5)
+        return n + jax.ops.segment_sum(out, r, sum_n_node) # shape: (9, 5)
 
-    def fe(e, s, r):
+    def fe(e, s, r): # called by update_edge_fn
+        """
+        Args:
+            e: devicearray --> shape : (18, 5)
+            s: devicearray --> shape : (18, 5)
+
+        Returns: DeviceArray --> shape : (18, 5)
+        """
         def fn(hi, hj):
             c2ij = hi * hj
             out = forward_pass(fe_params, c2ij, activation_fn=act_fn)
@@ -416,11 +454,17 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         out = e + vmap(fn, in_axes=(0, 0))(s, r)
         return out
 
-    def ff1(e):
+    def ff1(e): # called by edge_node_to_V_fn
+    """
+    Args:
+        e -> device array --> shape --> (18, 5)
+    
+    Returns: device array --> shape --> (18, 1)
+    """
         def fn(eij):
             out = forward_pass(ff1_params, eij, activation_fn=act_fn)
             return out
-        out = vmap(fn)(e)
+        out = vmap(fn)(e) # shape --> (18, 1)
         return out
 
     def ff2(n):
@@ -437,9 +481,15 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         out = vmap(fn)(n)
         return out
 
-    def ke(n):
+    def ke(n):# called by node_to_T_fn 
+    """
+    Args:
+        n: device array --> shape (9, 6)
+
+    Returns: device array --> shape --> (9, 1)
+    """
         def fn(ni):
-            out = forward_pass(ke_params, ni, activation_fn=act_fn)
+            out = forward_pass(ke_params, ni, activation_fn=act_fn) # <function forward_pass at 0x2afce4e300d0>
             return out
         out = vmap(fn)(n)
         return out
@@ -457,7 +507,7 @@ def cal_graph(params, graph, eorder=None, mpass=1,
 
 
         
-        
+        Return: Frozendict : keys:{edge_embed, eij}
         """
 
         del edges, globals_ # deleting since empty initially ?
@@ -476,14 +526,14 @@ def cal_graph(params, graph, eorder=None, mpass=1,
             globals_: <built-in function globals>
 
         
-        
+        Return: Frozendict:  keys : {node_embed, node_pos_embed, node_vel_embed}
         """
         del sent_edges, received_edges, globals_
         type_of_node = nodes["type"] # DeviceArray([0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int32)
         ohe = onehot(type_of_node) # DeviceArray([1, 1, 1, 1, 1, 1, 1, 1, 1].T
-        emb = fne(ohe) # shape -- (9, 5)
-        emb_pos = jnp.hstack([emb, nodes["position"]])
-        emb_vel = jnp.hstack(
+        emb = fne(ohe) # shape -- (9, 5) # <function cal_graph.<locals>.fne at 0x2ac7410c0488>
+        emb_pos = jnp.hstack([emb, nodes["position"]]) # (9, 7)
+        emb_vel = jnp.hstack(     # (9, 6)
             [fneke(ohe), jnp.sum(jnp.square(nodes["velocity"]), axis=1, keepdims=True)])
         return frozendict({"node_embed": emb,
                            "node_pos_embed": emb_pos,
@@ -491,28 +541,64 @@ def cal_graph(params, graph, eorder=None, mpass=1,
                            })
 
     def update_node_fn(nodes, edges, senders, receivers, globals_, sum_n_node):
+        """
+        Args:
+            nodes: frozendict --> dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
+            edges: frozendict --> dict_keys(['edge_embed', 'eij'])
+            senders = DeviceArray([8, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=int32)
+            receivers = DeviceArray([0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 0, 1, 2, 3, 4, 5, 6, 7], dtype=int32)
+            globals_ = {}
+            sum_n_node = 9
+        
+        Returns: frozendict: dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
+        
+        """
+
         del globals_
-        emb = fv(nodes["node_embed"], edges["edge_embed"],
+        emb = fv(nodes["node_embed"], edges["edge_embed"], # <function cal_graph.<locals>.fv at 0x2ac7410c0158>
                  senders, receivers, sum_n_node)
+        #emb.shape --> (9, 5)
         n = dict(nodes)
-        n.update({"node_embed": emb})
+        """ updating node embedding"""
+        n.update({"node_embed": emb}) # dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
         return frozendict(n)
 
     def update_edge_fn(edges, senders, receivers, globals_, last_step):
+        """
+        Args;
+            nodes: frozendict --> dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
+            edges: frozendict --> dict_keys(['edge_embed', 'eij'])
+            senders: frozendict --> dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
+            receivers: dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
+            globals_ = {}
+            last_step = True
+        
+        
+        Returns: dict:  dict_keys(['edge_embed', 'eij'])
+        """
         del globals_
-        emb = fe(edges["edge_embed"], senders["node_embed"],
+        emb = fe(edges["edge_embed"], senders["node_embed"], # <function cal_graph.<locals>.fe at 0x2afcf4c09f28>
                  receivers["node_embed"])
-        if last_step:
-            if eorder is not None:
-                emb = (emb + fe(edges["edge_embed"][eorder],
+        # emb.shape --> (18, 5)
+        if last_step: # true
+            if eorder is not None: # DeviceArray([ 9, 10, 11, 12, 13, 14, 15, 16, 17,  0,  1,  2,  3,  4,  5, 6,  7,  8], dtype=int32)
+                emb = (emb + fe(edges["edge_embed"][eorder], # <function cal_graph.<locals>.fe
                        receivers["node_embed"], senders["node_embed"])) / 2
         return frozendict({"edge_embed": emb, "eij": edges["eij"]})
 
     if useonlyedge: # True
         def edge_node_to_V_fn(edges, nodes):
-            vij = ff1(edges["edge_embed"])
+            """
+            Args:
+                nodes: frozendict --> dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
+                edges: frozendict --> dict_keys(['edge_embed', 'eij'])
+
+            Returns: <bound method sum of DeviceArray
+            """
+            vij = ff1(edges["edge_embed"])  # <function cal_graph.<locals>.ff1 
+            # vij --> shape --> (18,1)
             # print(vij, edges["eij"])
-            return vij.sum()
+            return vij.sum() # <bound method sum of DeviceArray(
     else:
         def edge_node_to_V_fn(edges, nodes):
             vij = ff1(edges["edge_embed"]).sum()
@@ -522,7 +608,13 @@ def cal_graph(params, graph, eorder=None, mpass=1,
             return vij + vi
 
     def node_to_T_fn(nodes):
-        return ke(nodes["node_vel_embed"]).sum()
+        """
+        Args:
+            nodes: dict --> dict_keys(['node_embed', 'node_pos_embed', 'node_vel_embed'])
+        
+        Returns : device arrray --> 1 value
+        """
+        return ke(nodes["node_vel_embed"]).sum() # <function cal_graph.<locals>.ke # DeviceArray(58.41084, dtype=float32)
 
     if not(useT): # false
         node_to_T_fn = None

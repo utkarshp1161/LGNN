@@ -85,11 +85,11 @@ def Main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
 
 def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
          dt=1.0e-3, ifdrag=0, stride=100, trainm=1, grid=False, mpass=1, lr=0.001, withdata=None, datapoints=None, batch_size=1000, config=None):
-         """
-         Args:
-            mpass: int --> number of message passing (sent to cal_graph())
+    """
+    Args:
+        mpass: int --> number of message passing (sent to cal_graph())
          
-         """
+    """
 
     # print("Configs: ")
     # pprint(N, epochs, seed, rname,
@@ -470,6 +470,16 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         print("kinetic energy: learnable")
 
         def L_energy_fn(params, graph):
+            """
+            Args:
+                params: dict --> params.keys() --> dict_keys(['fb', 'fv', 'fe', 'ff1', 'ff2', 'ff3', 'fne', 'fneke', 'ke'])
+
+                
+                graph:  jraph.GraphsTuple
+
+            Returns: T - V : DeviceArray(-504066.75, dtype=float32) --> total energy - pot energy
+            
+            """
             g, V, T = cal_graph(params, graph, mpass=mpass, eorder=eorder, # /LGNN/src/graph.py
                                 useT=True, useonlyedge=True)
             return T - V
@@ -510,14 +520,19 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         n_edge=jnp.array([senders.shape[0]]),
         globals={})
 
-    pdb.set_trace()
-    L_energy_fn(Lparams, state_graph)
+    #pdb.set_trace()
+    L_energy_fn(Lparams, state_graph) 
 
 
     def energy_fn(species):
+        """
+        Args: 
+            species = DeviceArray([0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int32)
+            
+        """
         state_graph = jraph.GraphsTuple(nodes={
-            "position": R,
-            "velocity": V,
+            "position": R, # device array --> shape (9,2)
+            "velocity": V, # device array --> shape (9,2)
             "type": species
         },
             edges={},
@@ -527,17 +542,27 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
             n_edge=jnp.array([senders.shape[0]]),
             globals={})
 
-        def apply(R, V, params):
+        def apply(R, V, params): # <function main.<locals>.energy_fn.<locals>.apply 
+            """
+            Args:
+                R: device array --> shape (9,2)
+                V: device array --> shape (9,2)
+                params:  params: dict --> params.keys() --> dict_keys(['fb', 'fv', 'fe', 'ff1', 'ff2', 'ff3', 'fne', 'fneke', 'ke'])
+
+            Returns: energy of state and updates the graph(not returns)
+            """
             state_graph.nodes.update(position=R)
             state_graph.nodes.update(velocity=V)
             return L_energy_fn(params, state_graph)
         return apply
 
-    apply_fn = energy_fn(species)
-    v_apply_fn = vmap(apply_fn, in_axes=(None, 0))
+    apply_fn = energy_fn(species) # updates graph and returns <function main.<locals>.energy_fn.<locals>.
+    v_apply_fn = vmap(apply_fn, in_axes=(None, 0)) #<function main.<locals>.energy_fn.<locals>.apply at 0x2afcf4c52e18>
+
 
     def Lmodel(x, v, params): return apply_fn(x, v, params["L"])
 
+    pdb.set_trace()
     params = {"L": Lparams}
 
     def nndrag(v, params):
