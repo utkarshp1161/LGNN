@@ -1,3 +1,6 @@
+"""https://towardsdatascience.com/getting-started-with-jax-mlps-cnns-rnns-d0bc389bd683"""
+"""https://roberttlange.github.io/posts/2020/03/blog-post-10/"""
+
 from functools import partial
 
 import jax
