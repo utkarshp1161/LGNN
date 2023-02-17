@@ -14,6 +14,7 @@ def initialize_mlp(sizes, key, affine=[False], scale=1.0):
     affine = [False]
     scale = 1.0
     
+    returns: 
     """
     keys = random.split(key, len(sizes)) #DeviceArray([[2465931498, 3679230171],[ 255383827,  267815257]], dtype=uint32)
     # Initialize a single layer with Gaussian weights -  helper function
@@ -80,6 +81,8 @@ def MSE(y_act, y_pred):
 
 
 def L2error(y_act, y_pred):
+    """
+    """
     return jnp.mean(jnp.square(y_pred - y_act))
 
 

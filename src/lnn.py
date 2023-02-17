@@ -129,6 +129,7 @@ def accelerationTV(x, v, params):
 
 def accelerationFull(n, Dim, lagrangian=lagrangian, non_conservative_forces=None, external_force=None, constraints=None):
     """ ̈q = M⁻¹(-C ̇q + Π + Υ - Aᵀ(AM⁻¹Aᵀ)⁻¹ ( AM⁻¹ (-C ̇q + Π + Υ + F ) + Adot ̇q ) + F )
+    Calculates accelaration:
 
     :param T: [description], defaults to _T
     :type T: [type], optional

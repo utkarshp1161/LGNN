@@ -455,12 +455,12 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         return out
 
     def ff1(e): # called by edge_node_to_V_fn
-    """
-    Args:
-        e -> device array --> shape --> (18, 5)
-    
-    Returns: device array --> shape --> (18, 1)
-    """
+        """
+        Args:
+            e -> device array --> shape --> (18, 5)
+        
+        Returns: device array --> shape --> (18, 1)
+        """
         def fn(eij):
             out = forward_pass(ff1_params, eij, activation_fn=act_fn)
             return out
@@ -482,12 +482,12 @@ def cal_graph(params, graph, eorder=None, mpass=1,
         return out
 
     def ke(n):# called by node_to_T_fn 
-    """
-    Args:
-        n: device array --> shape (9, 6)
+        """
+        Args:
+            n: device array --> shape (9, 6)
 
-    Returns: device array --> shape --> (9, 1)
-    """
+        Returns: device array --> shape --> (9, 1)
+        """
         def fn(ni):
             out = forward_pass(ke_params, ni, activation_fn=act_fn) # <function forward_pass at 0x2afce4e300d0>
             return out

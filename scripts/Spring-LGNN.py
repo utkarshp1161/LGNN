@@ -87,7 +87,22 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
          dt=1.0e-3, ifdrag=0, stride=100, trainm=1, grid=False, mpass=1, lr=0.001, withdata=None, datapoints=None, batch_size=1000, config=None):
     """
     Args:
-        mpass: int --> number of message passing (sent to cal_graph())
+        N = 9
+        epochs = 10000
+        seed = 42
+        rname = True
+        saveat = 10 ----------> save after these many epochs
+        error_fn = 'L2error'
+        dt = 0.001
+        ifdrag = 0
+        stride = 100
+        trainm = 1
+        grid = False
+        mpass = 1 -------------> message passing argument
+        lr = 0.001
+        withdata = None
+        datapoints = None
+        batch_size = 1000
          
     """
 
@@ -233,15 +248,15 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         # senders.shape--> (18,), recievers.shape --> (18,)
         eorder = edge_order(len(senders)) # in psystems/nsprings.py # shape-> (18,)
 
-    Ef = 1  # eij dim
-    Nf = dim # x and y axes--> 2 dimensions
-    Oh = 1 # ? mean
+    Ef = 1  # eij dim # edge feature --> 
+    Nf = dim # x and y axes--> 2 dimensions --> node feature
+    Oh = 1 # ? 
 
-    Eei = 5 # mean?
-    Nei = 5 # mean?
+    Eei = 5 #  edge embedding initial
+    Nei = 5 #  node embedding initial
 
-    hidden = 5 # mean?
-    nhidden = 2 # mean?
+    hidden = 5 # hidden what?
+    nhidden = 2 # 
 
 
 
@@ -251,6 +266,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
             in_ = 1
             out_ = 5
         
+        Returns: list -->  [1, 5, 5, 5]
         """
         return [in_] + [hidden]*nhidden + [out_] # [1, 5, 5, 5]
 
@@ -515,14 +531,14 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     },
         edges={},
         senders=senders, # recall: created by chain(N)
-        receivers=receivers,
+        receivers=receivers, # recall: created by chain(N)
         n_node=jnp.array([N]),
         n_edge=jnp.array([senders.shape[0]]),
         globals={})
 
     #pdb.set_trace()
-    L_energy_fn(Lparams, state_graph) 
-
+    L_energy_fn(Lparams, state_graph)  # outputs Lengrangian of given graph with Lparams : T - V
+    #pdb.set_trace()
 
     def energy_fn(species):
         """
@@ -556,22 +572,30 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
             return L_energy_fn(params, state_graph)
         return apply
 
-    apply_fn = energy_fn(species) # updates graph and returns <function main.<locals>.energy_fn.<locals>.
-    v_apply_fn = vmap(apply_fn, in_axes=(None, 0)) #<function main.<locals>.energy_fn.<locals>.apply at 0x2afcf4c52e18>
+    apply_fn = energy_fn(species) # updates graph and returns <function main.<locals>.energy_fn.<locals>. # species DeviceArray([0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=int32)
+    v_apply_fn = vmap(apply_fn, in_axes=(None, 0)) #<function main.<locals>.energy_fn.<locals>.apply at 0x2afcf4c52e18> # 
 
 
-    def Lmodel(x, v, params): return apply_fn(x, v, params["L"])
+    def Lmodel(x, v, params):
+        """
+        """
+        return apply_fn(x, v, params["L"])
 
-    pdb.set_trace()
-    params = {"L": Lparams}
+    
+    params = {"L": Lparams} # Lparams is a dict itself, dict_keys(['L'])
 
-    def nndrag(v, params):
+    def nndrag(v, params): # neural network drag
+        """ neural network drag
+        """
         return - jnp.abs(models.forward_pass(params, v.reshape(-1), activation_fn=models.SquarePlus)) * v
 
-    if ifdrag == 0:
+    if ifdrag == 0: # usually executed
         print("Drag: 0.0")
 
         def drag(x, v, params):
+            """Returns 0
+            
+            """
             return 0.0
     elif ifdrag == 1:
         print("Drag: nn")
@@ -579,28 +603,35 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         def drag(x, v, params):
             return vmap(nndrag, in_axes=(0, None))(v.reshape(-1), params["drag"]).reshape(-1, 1)
 
-    params["drag"] = initialize_mlp([1, 5, 5, 1], key)
+    params["drag"] = initialize_mlp([1, 5, 5, 1], key) #
 
-    acceleration_fn_model = jit(accelerationFull(N, dim,
-                                                 lagrangian=Lmodel,
+    acceleration_fn_model = jit(accelerationFull(N, dim,  # src.lnn.py --> calculates acceleration
+                                                 lagrangian=Lmodel, # -------------------------> Lmodel proxy to cal_graph
                                                  constraints=None,
                                                  non_conservative_forces=drag))
-    v_acceleration_fn_model = vmap(acceleration_fn_model, in_axes=(0, 0, None))
+    v_acceleration_fn_model = vmap(acceleration_fn_model, in_axes=(0, 0, None)) # vectorizing above
 
     ################################################
     ################## ML Training #################
     ################################################
 
-    LOSS = getattr(src.models, error_fn)
+    LOSS = getattr(src.models, error_fn) # <function L2error at 0x2ac9d0304268>
 
     @jit
     def loss_fn(params, Rs, Vs, Fs):
-        pred = v_acceleration_fn_model(Rs, Vs, params)
+        """LOSS function: equates accelaration
+        
+        """
+        pred = v_acceleration_fn_model(Rs, Vs, params) # executes cal_graph--> message passing
         return LOSS(pred, Fs)
 
     @jit
     def gloss(*args):
-        return value_and_grad(loss_fn)(*args)
+        """Computes gradient of loss: also loss
+        
+        
+        """
+        return value_and_grad(loss_fn)(*args) # get values and gradients
 
     opt_init, opt_update_, get_params = optimizers.adam(lr)
 
@@ -614,62 +645,79 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
     @jit
     def update(i, opt_state, params, loss__, *data):
         """ Compute the gradient for a batch and update the parameters """
-        value, grads_ = gloss(params, *data)
-        opt_state = opt_update(i, grads_, opt_state)
-        return opt_state, get_params(opt_state), value
+        value, grads_ = gloss(params, *data) # get values and gradients
+        opt_state = opt_update(i, grads_, opt_state)# ---> theta_t+1 <- theta_t -eta*grad(loss)
+        return opt_state, get_params(opt_state), value # 
 
     @ jit
     def step(i, ps, *args):
-        return update(i, *ps, *args)
+        """
+        
+        """
+        return update(i, *ps, *args) # <CompiledFunction object at 0x2b446fe0e708>
 
     def batching(*args, size=None):
-        L = len(args[0])
-        if size != None:
-            nbatches1 = int((L - 0.5) // size) + 1
-            nbatches2 = max(1, nbatches1 - 1)
-            size1 = int(L/nbatches1)
-            size2 = int(L/nbatches2)
+        """
+        Args:
+            size: int --> 1000
+        
+        returns: list
+        """
+        L = len(args[0]) # train size -- 7500 
+        if size != None: # executed
+            nbatches1 = int((L - 0.5) // size) + 1 # 75 #  // --> Floor division
+            nbatches2 = max(1, nbatches1 - 1) # 74
+            size1 = int(L/nbatches1) # 1000
+            size2 = int(L/nbatches2) # 1013
             if size1*nbatches1 > size2*nbatches2:
-                size = size1
+                size = size1 
                 nbatches = nbatches1
             else:
-                size = size2
+                size = size2 
                 nbatches = nbatches2
         else:
             nbatches = 1
             size = L
-
+        # size = 1000, nbatches = 75
         newargs = []
         for arg in args:
             newargs += [jnp.array([arg[i*size:(i+1)*size]
                                    for i in range(nbatches)])]
-        return newargs
+        return newargs # len --> 3
 
     bRs, bVs, bFs = batching(Rs, Vs, Fs,
                              size=min(len(Rs), batch_size))
+    """bRs -> (75, 1000, 9, 2) similarly for vel and pos """
 
     print(f"training ...")
 
-    opt_state = opt_init(params)
+    opt_state = opt_init(params)#<function adam.<locals>.init at 0x2b81b3f8da60> # adam optimizer part of jax_experimental
     epoch = 0
     optimizer_step = -1
     larray = []
     ltarray = []
     last_loss = 1000
 
-    larray += [loss_fn(params, Rs, Vs, Fs)]
-    ltarray += [loss_fn(params, Rst, Vst, Fst)]
+    """------train loss-----"""
+    larray += [loss_fn(params, Rs, Vs, Fs)] # [DeviceArray(6.477907e+09, dtype=float32)] -- appending a list-- jit
+    """------test loss-----"""
+    ltarray += [loss_fn(params, Rst, Vst, Fst)] # [DeviceArray(6.47667e+09, dtype=float32)] -- appending a list-- jit
 
     def print_loss():
+        """Prints loss 
+        
+        """
         print(
             f"Epoch: {epoch}/{epochs} Loss (mean of {error_fn}):  train={larray[-1]}, test={ltarray[-1]}")
 
     print_loss()
 
-    for epoch in range(epochs):
-        for data in zip(bRs, bVs, bFs):
+
+    """Training starts--------------------------------------------------------------------------------------------------------------------"""
+    for epoch in range(epochs): # epochs ==> this many passes through train data
+        for data in zip(bRs, bVs, bFs): # one batch iteration
             optimizer_step += 1
-            opt_state, params, l_ = step(
+            opt_state, params, l_ = step( # step --> <CompiledFunction object at 0x2b7fb03537c8>
                 optimizer_step, (opt_state, params, 0), *data)
 
         # optimizer_step += 1
@@ -677,11 +725,11 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         #     optimizer_step, (opt_state, params, 0), Rs, Vs, Fs)
 
         if epoch % saveat == 0:
-            larray += [loss_fn(params, Rs, Vs, Fs)]
-            ltarray += [loss_fn(params, Rst, Vst, Fst)]
+            larray += [loss_fn(params, Rs, Vs, Fs)] # appending a list # note Rs--> entire train data
+            ltarray += [loss_fn(params, Rst, Vst, Fst)] # appending a list # note Rst --> entire test data
             print_loss()
 
-        if epoch % saveat == 0:
+        if epoch % saveat == 0: # save after every 10 epochs
             metadata = {
                 "savedat": epoch,
                 "mpass": mpass,
@@ -693,10 +741,12 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
                      params, metadata=metadata)
             savefile(f"loss_array_{ifdrag}_{trainm}.dil",
                      (larray, ltarray), metadata=metadata)
-            if last_loss > larray[-1]:
+            if last_loss > larray[-1]: # note larray is train loss on entire data(not_batch)
                 last_loss = larray[-1]
                 savefile(f"lgnn_trained_model_{ifdrag}_{trainm}_low.dil",
                          params, metadata=metadata)
+    """Training ends--------------------------------------------------------------------------------------------------------------------"""
+
 
     fig, axs = panel(1, 1)
     plt.semilogy(larray[1:], label="Training")
@@ -714,7 +764,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
         "trainm": trainm,
     }
     params = get_params(opt_state)
-    savefile(f"lgnn_trained_model_{ifdrag}_{trainm}.dil",
+    savefile(f"lgnn_trained_model_{ifdrag}_{trainm}.dil", # save model as dil
              params, metadata=metadata)
     savefile(f"loss_array_{ifdrag}_{trainm}.dil",
              (larray, ltarray), metadata=metadata)
