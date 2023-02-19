@@ -15,7 +15,15 @@ def loadfile(filename, verbose=False):
 
 def savefile(filename, data, metadata={}, verbose=False):
     """Saves a pickle file
+    Args:
+        filename: string --> '../results/81-Spring-data/0/initial-configs_0.pkl'
+        data: list --> len : 1000
+        metadata: {'N1': 9, 'N2': 9}
+
+    saves a pickel file: (data, metadata)
     """
+    import pdb as pdb
+    pdb.set_trace()
     if verbose:
         print(f"Saving {filename}")
     pickle.dump((data, metadata), open(filename, "wb+"))

@@ -1,3 +1,4 @@
+"""https://github.com/deepmind/jraph/blob/master/jraph/examples/hamiltonian_graph_network.py"""
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np

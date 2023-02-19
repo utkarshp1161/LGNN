@@ -110,9 +110,10 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
     ################################################
 
     np.random.seed(seed)
-    key = random.PRNGKey(seed)
+    key = random.PRNGKey(seed) # DeviceArray([ 0, 42], dtype=uint32)
 
-    init_confs = [chain(N)[:2]
+    pdb.set_trace()
+    init_confs = [chain(N)[:2] # 1st 2 elements-> R and vel
                   for i in range(nconfig)] # nconfig = 10000
 
     _, _, senders, receivers = chain(N)
@@ -136,7 +137,7 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
     stride = 100
     lr = 0.001
 
-    kin_energy = partial(lnn._T, mass=masses)
+    kin_energy = partial(lnn._T, mass=masses) # in src/lnn.py
 
     def pot_energy_orig(x):
         """
@@ -217,11 +218,11 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
         dataset_states += [model_states] # appending the states
         if ind % saveat == 0:
             print(f"{ind} / {len(init_confs)}")
-            print("Saving datafile...")
+            print("Saving datafile...")#---------------------------------------------------------->datafile
             savefile(f"model_states_{ifdrag}.pkl", dataset_states)
 
     print("Saving datafile...")
-    savefile(f"model_states_{ifdrag}.pkl", dataset_states)
+    savefile(f"model_states_{ifdrag}.pkl", dataset_states)#---------------------------------------> datafile
 
     def cal_energy(states):
         KE = vmap(kin_energy)(states.velocity)

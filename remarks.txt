@@ -8,9 +8,8 @@
 
  come back : /scratch/sire/phd/srz228573/benchmarking/LGNN/src/graph.py(452)initial_node_emb_fn()
 
-
- Q1 --> variables in lgnn file
- Q2. senders and recievers why 9*2 = 18--> why embedding 18,5
- Q3. Return of few functions--> node and edge have dict with keys : 3 entry and 2 entry
- Q c1ij?
- Q eorder meaning/-> update edges
+19th feb 2023 sunday:
+Q How to create psystem for lj (with drag):
+    a) in lnn.py create new function of energy? --> brownian dynamics --> use 
+    b) lj-data.py
+    c) lj.py in psystem: how to set senders and receivers etc? 

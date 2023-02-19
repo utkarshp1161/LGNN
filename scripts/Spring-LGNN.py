@@ -145,7 +145,7 @@ def main(N=3, epochs=10000, seed=42, rname=True, saveat=10, error_fn="L2error",
 
     loadfile = OUT(src.io.loadfile)
     savefile = OUT(src.io.savefile)
-    save_ovito = OUT(src.io.save_ovito)
+    save_ovito = OUT(src.io.save_ovito) # not loading ovito trajectories here?
 
     savefile(f"config_{ifdrag}_{trainm}.pkl", config)
 
