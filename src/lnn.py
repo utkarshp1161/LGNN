@@ -29,7 +29,7 @@ def nonan(input_fn):
     :type input_fn: function
     """
     def out_fn(*args, **kwargs):
-        return jnp.nan_to_num(input_fn(*args, **kwargs))
+        return jnp.nan_to_num(input_fn(*args, **kwargs)) # Replace NaN with zero and infinity with large finite numbers
     out_fn.__doc__ = input_fn.__doc__
     return out_fn
 
@@ -130,6 +130,7 @@ def accelerationTV(x, v, params):
 def accelerationFull(n, Dim, lagrangian=lagrangian, non_conservative_forces=None, external_force=None, constraints=None):
     """ ̈q = M⁻¹(-C ̇q + Π + Υ - Aᵀ(AM⁻¹Aᵀ)⁻¹ ( AM⁻¹ (-C ̇q + Π + Υ + F ) + Adot ̇q ) + F )
     Calculates accelaration:
+    
 
     :param T: [description], defaults to _T
     :type T: [type], optional
@@ -314,6 +315,13 @@ def VANDERWALLS(x, C=4.0):
     return C/x_**12
 
 
+
+@ nonan
+def BROWNIAN_DYNAMICS(x, ):
+    """Energy
+    """
+
+
 @ nonan
 def x_6(x):
     """x^6
@@ -351,8 +359,9 @@ def LJ(x, sigma=1.0, epsilon=1.0):
     :rtype: float
     """
     x_ = jnp.sum(jnp.square(x), keepdims=True)
-    r = x_3(x_)*sigma**6
+    r = x_3(x_)*sigma**6 
     return 4.0*epsilon*(r**2 - r)
+
 
 # =============================================
 

@@ -31,7 +31,7 @@ import src
 from jax.config import config
 from src import lnn
 from src.graph import *
-from src.lnn import acceleration, accelerationFull, accelerationTV
+from src.lnn 
 from src.md import *
 from src.models import MSE, initialize_mlp
 from src.nve import NVEStates, nve
@@ -156,6 +156,27 @@ def main(N1=4, N2=1, dim=3, grid=False, saveat=100, runs=10000, nconfig=1, ifdra
 
         def drag(x, v, params):
             return -0.1*v.reshape(-1, 1)
+    
+    if ifbrownian == 0:
+        print("brownian: 0.0")
+
+        def brownian(x, v, params):
+            return 0.0
+    elif ifbrownian == 1:
+        print("Brownian: square_root(2*(0.1)*K_B*T)*R(t)")
+
+        def brownian(x, v, params):
+            """Brownian: square_root(2*(0.1)*K_B*T)*R(t)
+
+            R(t) --> sampled from mean: 0, std: square_root(dt)
+            """
+                KB_T = 1 # KB: boltzmann constant, T is temperature
+                gamma = 0.1 # drag coefficient
+                C = jnp.sqrt(2*(gamma)*KB_T)
+                mu, std = 0, np.sqrt(dt)
+                R_t = np.random.normal(0, std, 1)
+                R_t = jnp.array(R_t)
+            return C*R_t
 
     acceleration_fn_orig = lnn.accelerationFull(N, dim,
                                                 lagrangian=Lactual,

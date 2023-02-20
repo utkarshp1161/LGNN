@@ -10,6 +10,8 @@
 
 19th feb 2023 sunday:
 Q How to create psystem for lj (with drag):
-    a) in lnn.py create new function of energy? --> brownian dynamics --> use 
+    a) in lnn.py create new function of energy? --> brownian dynamics --> accelerationfull will have brownian term
     b) lj-data.py
     c) lj.py in psystem: how to set senders and receivers etc? 
+
+Create ovito file and visualize in ovito

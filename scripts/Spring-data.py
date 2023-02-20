@@ -40,7 +40,7 @@ import src
 from jax.config import config
 from src import lnn
 from src.graph import *
-from src.lnn import acceleration, accelerationFull, accelerationTV
+from src.lnn
 from src.md import predition
 from src.models import MSE, initialize_mlp
 from src.nve import NVEStates, nve
@@ -188,8 +188,8 @@ def main(N1=3, N2=None, dim=2, grid=False, saveat=100, runs=100, nconfig=1000, i
             return -0.1*v.reshape(-1, 1)
 
     acceleration_fn_orig = lnn.accelerationFull(N, dim,
-                                                lagrangian=Lactual,
-                                                non_conservative_forces=drag,
+                                                lagrangian=Lactual, # function
+                                                non_conservative_forces=drag, # function
                                                 constraints=None,
                                                 external_force=None)
 
